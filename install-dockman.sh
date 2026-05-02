@@ -1,18 +1,31 @@
 #!/bin/bash
 # ============================================================
-#  DOCKMAN Universal Installer v2.1
+#  DOCKMAN Universal Installer v2.3
 #  Support: Ubuntu/Debian, RHEL/CentOS/Fedora, Arch, Alpine
-#  Cara pakai:
+#
+#  Install/Update langsung dari GitHub (tanpa clone):
+#    bash <(curl -fsSL https://raw.githubusercontent.com/bugsdroid/dockman/main/install-dockman.sh)
+#
+#  Atau jika sudah punya file ini:
 #    bash install-dockman.sh            -> install / update
 #    bash install-dockman.sh uninstall  -> hapus dockman
 #    bash install-dockman.sh check      -> cek dependencies
-#    bash install-dockman.sh build      -> build saja (tanpa install)
 # ============================================================
 
 set -e
 
+REPO_RAW="https://raw.githubusercontent.com/bugsdroid/dockman/main"
 INSTALL_PATH="/usr/local/bin/dockman"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Deteksi mode: lokal (ada build.py) atau remote (curl | bash)
+if [[ -n "${BASH_SOURCE[0]}" && "${BASH_SOURCE[0]}" != "bash" && -f "$(dirname "${BASH_SOURCE[0]}")/build.py" ]]; then
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    LOCAL_MODE=1
+else
+    SCRIPT_DIR="/tmp"
+    LOCAL_MODE=0
+fi
+
 DIST_FILE="$SCRIPT_DIR/dist/dockman.py"
 
 # ── Warna ──────────────────────────────────────────────────────────────────────
@@ -79,17 +92,13 @@ install_pkg() {
 }
 
 ensure_python() {
-    # Cek python3
     if command -v python3 &>/dev/null; then
         local ver=$(python3 --version 2>&1 | awk '{print $2}')
         ok "python3 $ver"
         return 0
     fi
     warn "python3 tidak ditemukan, menginstall..."
-    if [[ -z "$PKG_INSTALL" ]]; then
-        err "Tidak bisa auto-install python3. Install manual: https://python.org"
-        exit 1
-    fi
+    [[ -z "$PKG_INSTALL" ]] && { err "Tidak bisa auto-install python3."; exit 1; }
     [[ -z "$REPO_UPDATED" && -n "$PKG_UPDATE" ]] && eval "$PKG_UPDATE" &>/dev/null && REPO_UPDATED=1
     case "$OS_FAMILY" in
         debian) eval "$PKG_INSTALL python3 python3-pip python3-venv" &>/dev/null ;;
@@ -97,12 +106,7 @@ ensure_python() {
         arch)   eval "$PKG_INSTALL python python-pip" &>/dev/null ;;
         alpine) eval "$PKG_INSTALL python3 py3-pip" &>/dev/null ;;
     esac
-    if command -v python3 &>/dev/null; then
-        ok "python3 berhasil diinstall"
-    else
-        err "python3 gagal diinstall!"
-        exit 1
-    fi
+    command -v python3 &>/dev/null && ok "python3 berhasil diinstall" || { err "python3 gagal!"; exit 1; }
 }
 
 ensure_pip() {
@@ -131,59 +135,7 @@ install_rich() {
        python3 -m pip install rich -q 2>/dev/null; then
         ok "rich berhasil diinstall"
     else
-        warn "rich gagal. Output tidak berwarna."
-        return 1
-    fi
-}
-
-install_textual() {
-    if python3 -c "import textual" 2>/dev/null; then
-        local ver=$(python3 -c "import textual; print(textual.__version__)" 2>/dev/null)
-        ok "textual v${ver} sudah terinstall"
-        return 0
-    fi
-    warn "textual tidak ditemukan, menginstall..."
-    if python3 -m pip install "textual>=0.47.0" --break-system-packages -q 2>/dev/null || \
-       python3 -m pip install "textual>=0.47.0" -q 2>/dev/null; then
-        ok "textual berhasil diinstall"
-    else
-        warn "textual gagal diinstall."
-        warn "TUI akan fallback ke --menu mode."
-        warn "Install manual: pip install textual --break-system-packages"
-        return 1
-    fi
-}
-
-
-install_rich() {
-    if python3 -c "import rich" 2>/dev/null; then
-        ok "rich sudah terinstall"
-        return 0
-    fi
-    warn "rich tidak ditemukan, menginstall via pip..."
-    if python3 -m pip install rich --break-system-packages -q 2>/dev/null || \
-       python3 -m pip install rich -q 2>/dev/null; then
-        ok "rich berhasil diinstall"
-    else
         warn "rich gagal diinstall. Output tidak berwarna."
-        return 1
-    fi
-}
-
-install_textual() {
-    if python3 -c "import textual" 2>/dev/null; then
-        local ver=$(python3 -c "import textual; print(textual.__version__)" 2>/dev/null)
-        ok "textual sudah terinstall (v${ver})"
-        return 0
-    fi
-    warn "textual tidak ditemukan, menginstall via pip..."
-    if python3 -m pip install "textual>=0.47.0" --break-system-packages -q 2>/dev/null || \
-       python3 -m pip install "textual>=0.47.0" -q 2>/dev/null; then
-        ok "textual berhasil diinstall"
-    else
-        warn "textual gagal diinstall."
-        warn "TUI akan fallback ke --menu mode."
-        warn "Install manual: pip install textual --break-system-packages"
         return 1
     fi
 }
@@ -222,11 +174,34 @@ setup_docker_group() {
     fi
 }
 
+# ── Download pre-built binary dari GitHub ─────────────────────────────────────
+do_download() {
+    info "Mengunduh dockman.py dari GitHub..."
+    local tmp_file="/tmp/dockman.py.$$"
+    if command -v curl &>/dev/null; then
+        curl -fsSL "${REPO_RAW}/dockman.py" -o "$tmp_file"
+    elif command -v wget &>/dev/null; then
+        wget -qO "$tmp_file" "${REPO_RAW}/dockman.py"
+    else
+        err "curl atau wget diperlukan untuk download!"
+        exit 1
+    fi
+    # Verifikasi file valid
+    if python3 -c "import ast; ast.parse(open('$tmp_file').read())" 2>/dev/null; then
+        DIST_FILE="$tmp_file"
+        ok "Download selesai"
+    else
+        err "File yang didownload tidak valid!"
+        rm -f "$tmp_file"
+        exit 1
+    fi
+}
+
+# ── Build dari source lokal ───────────────────────────────────────────────────
 do_build() {
     info "Menjalankan build.py..."
     if [[ ! -f "$SCRIPT_DIR/build.py" ]]; then
         err "build.py tidak ditemukan di $SCRIPT_DIR"
-        err "Pastikan semua source file ada (core/, ui/, main.py)"
         exit 1
     fi
     python3 "$SCRIPT_DIR/build.py"
@@ -235,6 +210,17 @@ do_build() {
         exit 1
     fi
     ok "Build selesai: $DIST_FILE"
+}
+
+# ── Ambil dockman.py: lokal build atau download ───────────────────────────────
+do_get_binary() {
+    if [[ $LOCAL_MODE -eq 1 ]]; then
+        info "Mode lokal: build dari source..."
+        do_build
+    else
+        info "Mode remote: download pre-built binary..."
+        do_download
+    fi
 }
 
 # ══ UNINSTALL ══════════════════════════════════════════════════════════════════
@@ -257,27 +243,51 @@ if [[ "${1}" == "uninstall" ]]; then
     exit 0
 fi
 
-# ══ BUILD ONLY ═════════════════════════════════════════════════════════════════
+# ══ BUILD ONLY (hanya mode lokal) ══════════════════════════════════════════════
 if [[ "${1}" == "build" ]]; then
     echo ""
     echo -e "  ${C_BOLD}DOCKMAN Build${C_RESET}"
     line
+    if [[ $LOCAL_MODE -eq 0 ]]; then
+        err "Mode build hanya tersedia jika dijalankan dari direktori source."
+        exit 1
+    fi
     detect_os
     do_build
     echo ""
     exit 0
 fi
 
-# ══ CHECK / INSTALL / UPDATE ═══════════════════════════════════════════════════
-CHECK_ONLY=0
-[[ "${1}" == "check" ]] && CHECK_ONLY=1
+# ══ CHECK ═════════════════════════════════════════════════════════════════════
+if [[ "${1}" == "check" ]]; then
+    echo ""
+    echo -e "  ${C_BOLD}========================================${C_RESET}"
+    echo -e "  ${C_BOLD}  DOCKMAN - Cek Dependencies${C_RESET}"
+    echo -e "  ${C_BOLD}========================================${C_RESET}"
+    detect_os
+    info "OS Family  : $OS_FAMILY"
+    info "Pkg Manager: $PKG_MANAGER"
+    line
+    ensure_python
+    ensure_pip
+    install_rich || true
+    install_docker || true
+    install_pkg "screen" "screen" "optional" || true
+    command -v rclone &>/dev/null && ok "rclone terinstall" || warn "rclone tidak ditemukan"
+    install_pkg "nano" "nano" "optional" || true
+    echo ""
+    ok "Cek selesai."
+    echo ""
+    exit 0
+fi
 
+# ══ INSTALL / UPDATE ═══════════════════════════════════════════════════════════
 echo ""
 echo -e "  ${C_BOLD}========================================${C_RESET}"
-if [[ $CHECK_ONLY -eq 1 ]]; then
-    echo -e "  ${C_BOLD}  DOCKMAN - Cek Dependencies${C_RESET}"
-elif [[ -f "$INSTALL_PATH" ]]; then
-    echo -e "  ${C_BOLD}  DOCKMAN - Update${C_RESET}"
+if [[ -f "$INSTALL_PATH" ]]; then
+    # Tampilkan versi lama vs baru
+    OLD_VER=$("$INSTALL_PATH" --version 2>/dev/null | awk '{print $2}' || echo "?")
+    echo -e "  ${C_BOLD}  DOCKMAN - Update (versi saat ini: $OLD_VER)${C_RESET}"
 else
     echo -e "  ${C_BOLD}  DOCKMAN - Install${C_RESET}"
 fi
@@ -285,58 +295,43 @@ echo -e "  ${C_BOLD}========================================${C_RESET}"
 
 detect_os
 info "OS Family  : $OS_FAMILY"
-info "Pkg Manager: $PKG_MANAGER"
+info "Mode       : $([ $LOCAL_MODE -eq 1 ] && echo 'lokal (build dari source)' || echo 'remote (download dari GitHub)')"
 line
 
 echo ""
-echo -e "  ${C_BOLD}[1/7] Python3${C_RESET}"
+echo -e "  ${C_BOLD}[1/6] Python3${C_RESET}"
 ensure_python
 
 echo ""
-echo -e "  ${C_BOLD}[2/7] pip${C_RESET}"
+echo -e "  ${C_BOLD}[2/6] pip${C_RESET}"
 ensure_pip
 
 echo ""
-echo -e "  ${C_BOLD}[3/7] Rich (Python library)${C_RESET}"
+echo -e "  ${C_BOLD}[3/6] Rich (Python library)${C_RESET}"
 install_rich || true
 
 echo ""
-echo -e "  ${C_BOLD}[4/7] Textual (Python TUI library)${C_RESET}"
-install_textual || true
-
-echo ""
-echo -e "  ${C_BOLD}[5/7] Docker${C_RESET}"
+echo -e "  ${C_BOLD}[4/6] Docker${C_RESET}"
 install_docker || warn "Docker perlu diinstall manual"
 
 echo ""
-echo -e "  ${C_BOLD}[5/7] GNU Screen${C_RESET}"
+echo -e "  ${C_BOLD}[5/6] GNU Screen${C_RESET}"
 install_pkg "screen" "screen" "optional" || true
 
 echo ""
-echo -e "  ${C_BOLD}[6/7] rclone${C_RESET}"
-if command -v rclone &>/dev/null; then
-    ok "rclone sudah terinstall"
-else
-    warn "rclone tidak ditemukan"
-    info "Install manual: curl https://rclone.org/install.sh | sudo bash"
-fi
-
-echo ""
-echo -e "  ${C_BOLD}[7/7] nano (editor)${C_RESET}"
+echo -e "  ${C_BOLD}[6/6] nano (editor)${C_RESET}"
 install_pkg "nano" "nano" "optional" || true
 
 line
 
-[[ $CHECK_ONLY -eq 1 ]] && { echo ""; ok "Cek selesai."; echo ""; exit 0; }
-
-# ── Build ──────────────────────────────────────────────────────────────────────
+# ── Ambil binary ───────────────────────────────────────────────────────────────
 echo ""
-echo -e "  ${C_BOLD}Build dockman...${C_RESET}"
-do_build
+echo -e "  ${C_BOLD}Menyiapkan dockman.py...${C_RESET}"
+do_get_binary
 
 # ── Install ────────────────────────────────────────────────────────────────────
 echo ""
-echo -e "  ${C_BOLD}Install...${C_RESET}"
+echo -e "  ${C_BOLD}Installing...${C_RESET}"
 
 if [[ -f "$INSTALL_PATH" ]]; then
     BACKUP="${INSTALL_PATH}.bak_$(date +%Y%m%d_%H%M%S)"
@@ -346,7 +341,13 @@ fi
 
 sudo cp "$DIST_FILE" "$INSTALL_PATH"
 sudo chmod +x "$INSTALL_PATH"
-ok "Installed: $INSTALL_PATH"
+
+# Bersihkan tmp jika mode remote
+[[ $LOCAL_MODE -eq 0 ]] && rm -f "$DIST_FILE"
+
+# Verifikasi
+NEW_VER=$("$INSTALL_PATH" --version 2>/dev/null | awk '{print $2}' || echo "?")
+ok "Installed: $INSTALL_PATH (v${NEW_VER})"
 
 # ── Docker group ───────────────────────────────────────────────────────────────
 echo ""
@@ -355,24 +356,23 @@ setup_docker_group
 # ── Summary ────────────────────────────────────────────────────────────────────
 echo ""
 echo -e "  ${C_BOLD}========================================${C_RESET}"
-echo -e "  ${C_BOLD}  DOCKMAN siap dipakai!${C_RESET}"
+echo -e "  ${C_BOLD}  DOCKMAN v${NEW_VER} siap dipakai!${C_RESET}"
 echo -e "  ${C_BOLD}========================================${C_RESET}"
 echo ""
 echo "  USAGE:"
 echo "    dockman              -> TUI mode"
 echo "    dockman --menu       -> Menu numbered"
 echo "    dockman --setup      -> Setup wizard"
-echo "    dockman ps           -> List container (Rich)"
+echo "    dockman ps           -> List container"
 echo "    dockman logs <name>  -> Lihat logs"
 echo "    dockman report       -> Generate server report"
 echo "    dockman --help       -> Semua command"
 echo ""
-echo "  UPDATE:"
-echo "    cd $(dirname $SCRIPT_DIR)/dockman"
-echo "    git pull && bash install-dockman.sh"
+echo "  UPDATE ke versi terbaru:"
+echo "    bash <(curl -fsSL https://raw.githubusercontent.com/bugsdroid/dockman/main/install-dockman.sh)"
 echo ""
 echo "  UNINSTALL:"
-echo "    bash install-dockman.sh uninstall"
+echo "    bash <(curl -fsSL https://raw.githubusercontent.com/bugsdroid/dockman/main/install-dockman.sh) uninstall"
 echo ""
 
 if [[ -n "$NEED_RELOGIN" ]]; then
