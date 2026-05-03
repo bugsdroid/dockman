@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <strong>Personal Docker & Media Server Management Tool</strong>
+  <strong>Personal Docker &amp; Media Server Management Tool</strong>
 </p>
 
 <p align="center">
@@ -135,7 +135,7 @@ Config disimpan di `~/.config/dockman/config.ini`.
 [general]
 editor          = nano
 hostname        = myserver
-fetch_interval  = 10        # auto-refresh container list (detik)
+fetch_interval  = 10
 doc_output_dir  = /home/user
 
 [docker]
@@ -154,6 +154,19 @@ file            = /home/user/.bashrc
 ```
 
 Saat pertama kali dijalankan, wizard setup akan berjalan otomatis.
+
+---
+
+## 📋 Releases
+
+| Versi | Tanggal | Keterangan |
+|---|---|---|
+| [v2.2.0](https://github.com/bugsdroid/dockman/releases/tag/v2.2.0) | 2026-04-28 | Home Dashboard, banner animasi, remote install |
+| v2.1.0 | 2026-04-20 | GNU Screen, rclone, server report, wizard |
+| v2.0.0 | 2026-04-10 | Hybrid UI (Curses + Rich), CLI commands |
+| v1.0.0 | 2026-03-01 | Versi pertama |
+
+Lihat [CHANGELOG.md](CHANGELOG.md) untuk detail perubahan setiap versi.
 
 ---
 
@@ -176,10 +189,10 @@ cd dockman
 pip install rich --break-system-packages
 
 # Edit source
-nano dockman-v2.2.0-source-bugfix/ui/curses_ui.py
+nano dockman_main/ui/curses_ui.py
 
 # Build single file
-cd dockman-v2.2.0-source-bugfix
+cd dockman_main
 python3 build.py
 # Output: dist/dockman.py
 
@@ -196,21 +209,27 @@ dockman
 
 ```
 dockman/
-├── core/           # Business logic (tanpa UI)
-│   ├── config.py
-│   ├── docker.py
-│   ├── utils.py
-│   └── serverdocs.py
-├── ui/             # UI layer
-│   ├── curses_ui.py   # TUI interaktif
-│   ├── rich_ui.py     # Output tabel & logs
-│   ├── cli_menu.py    # Numbered menu fallback
-│   └── wizard.py      # Setup wizard
-├── main.py
-└── build.py        # Compile multi-file -> dockman.py
+├── dockman_main/       # Source code
+│   ├── core/           # Business logic (tanpa UI)
+│   │   ├── config.py
+│   │   ├── docker.py
+│   │   ├── utils.py
+│   │   └── serverdocs.py
+│   ├── ui/             # UI layer
+│   │   ├── curses_ui.py   # TUI interaktif
+│   │   ├── rich_ui.py     # Output tabel & logs
+│   │   ├── cli_menu.py    # Numbered menu fallback
+│   │   └── wizard.py      # Setup wizard
+│   ├── main.py
+│   └── build.py
+├── dockman.py          # Pre-built single file (siap install)
+├── install-dockman.sh  # Universal installer
+├── image-assets/       # Logo & screenshot
+├── CHANGELOG.md
+└── TECHNICAL.md
 ```
 
-**Aturan:** `core/` tidak boleh import dari `ui/`. Build system meng-compile semua file menjadi satu `dockman.py` (~140KB).
+**Aturan:** `core/` tidak boleh import dari `ui/`. Build system meng-compile semua file menjadi satu `dockman.py`.
 
 ---
 
