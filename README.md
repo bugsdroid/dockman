@@ -1,13 +1,31 @@
-# 🐳 Dockman
+# dockman>_
 
-**Personal Docker & Media Server Management Tool**
+<p align="center">
+  <img src="image-assets/dockman_logo_black.png" alt="Dockman Logo" width="600"/>
+</p>
+
+<p align="center">
+  <strong>Personal Docker & Media Server Management Tool</strong>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.8%2B-blue?logo=python">
+  <img src="https://img.shields.io/badge/License-MIT-green">
+  <img src="https://img.shields.io/badge/Version-2.2.0-orange">
+  <img src="https://img.shields.io/badge/Platform-Linux-lightgrey?logo=linux">
+</p>
+
+---
 
 Dockman adalah TUI (Terminal User Interface) berbasis Python untuk mengelola Docker container, images, compose, GNU Screen, rclone, dan laporan server — semuanya dari satu tempat, langsung di terminal.
 
-![Python](https://img.shields.io/badge/Python-3.8%2B-blue?logo=python)
-![License](https://img.shields.io/badge/License-MIT-green)
-![Version](https://img.shields.io/badge/Version-2.2.0-orange)
-![Platform](https://img.shields.io/badge/Platform-Linux-lightgrey?logo=linux)
+---
+
+## 📸 Screenshot
+
+<p align="center">
+  <img src="image-assets/sc_home.png" alt="Dockman Home Dashboard" width="900"/>
+</p>
 
 ---
 
@@ -30,11 +48,7 @@ Dockman adalah TUI (Terminal User Interface) berbasis Python untuk mengelola Doc
 ## 📦 Instalasi
 
 ```bash
-# Download installer
-curl -fsSL https://raw.githubusercontent.com/bugsdroid/dockman/main/install-dockman.sh -o install-dockman.sh
-
-# Install
-bash install-dockman.sh
+bash <(curl -fsSL https://raw.githubusercontent.com/bugsdroid/dockman/main/install-dockman.sh)
 ```
 
 Installer otomatis mengurus dependensi: Python3, pip, Rich, Docker, GNU Screen, rclone, nano.
@@ -50,9 +64,14 @@ Installer otomatis mengurus dependensi: Python3, pip, Rich, Docker, GNU Screen, 
 ### Update & Uninstall
 
 ```bash
-bash install-dockman.sh           # install / update
-bash install-dockman.sh uninstall # hapus
-bash install-dockman.sh check     # cek dependensi
+# Update ke versi terbaru
+bash <(curl -fsSL https://raw.githubusercontent.com/bugsdroid/dockman/main/install-dockman.sh)
+
+# Uninstall
+bash <(curl -fsSL https://raw.githubusercontent.com/bugsdroid/dockman/main/install-dockman.sh) uninstall
+
+# Cek dependensi
+bash <(curl -fsSL https://raw.githubusercontent.com/bugsdroid/dockman/main/install-dockman.sh) check
 ```
 
 ---
