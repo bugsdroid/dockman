@@ -21,14 +21,6 @@ Dockman adalah TUI (Terminal User Interface) berbasis Python untuk mengelola Doc
 
 ---
 
-## 📸 Screenshot
-
-<p align="center">
-  <img src="image-assets/sc%20home.png" alt="Dockman Home Dashboard" width="900"/>
-</p>
-
----
-
 ## ✨ Fitur
 
 - **TUI Interaktif** — navigasi keyboard, anti-flicker, shortcut huruf `[X]`
