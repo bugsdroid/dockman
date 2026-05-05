@@ -26,6 +26,15 @@ Dockman is a Python-based TUI (Terminal User Interface) for managing Docker cont
 
 ---
 
+## 🤔 Why Dockman?
+
+- No need to remember long Docker commands
+- Clean interactive interface (TUI)
+- Faster daily workflow
+- Beginner-friendly but powerful
+
+---
+
 ## 📸 Screenshot
 
 <p align="center">
