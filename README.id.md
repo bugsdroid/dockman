@@ -16,13 +16,13 @@
 </p>
 
 <p align="center">
-  🇬🇧 English &nbsp;|&nbsp;
-  <a href="README.id.md">🇮🇩 Bahasa Indonesia</a>
+  <a href="README.md">🇬🇧 English</a> &nbsp;|&nbsp;
+  🇮🇩 Bahasa Indonesia
 </p>
 
 ---
 
-Dockman is a Python-based TUI (Terminal User Interface) for managing Docker containers, images, compose, GNU Screen, rclone, and server reports — all from one place, right in your terminal.
+Dockman adalah TUI (Terminal User Interface) berbasis Python untuk mengelola Docker container, images, compose, GNU Screen, rclone, dan laporan server — semuanya dari satu tempat, langsung di terminal.
 
 ---
 
@@ -34,29 +34,29 @@ Dockman is a Python-based TUI (Terminal User Interface) for managing Docker cont
 
 ---
 
-## ✨ Features
+## ✨ Fitur
 
-- **Interactive TUI** — keyboard navigation, anti-flicker, letter shortcuts `[X]`
-- **Home Dashboard** — neofetch-style: sysinfo, RAM, storage bar, block devices, docker summary
-- **Container Management** — view logs, live logs, restart, stop/start, exec shell, pull image, remove
-- **Bulk Actions** — update all images, restart all, compose up/down/pull, prune volumes/images
-- **Docker Images** — list, pull update, delete
+- **TUI Interaktif** — navigasi keyboard, anti-flicker, shortcut huruf `[X]`
+- **Dashboard Home** — neofetch-style: sysinfo, RAM, storage bar, block devices, docker summary
+- **Manajemen Container** — lihat logs, live logs, restart, stop/start, exec shell, pull image, remove
+- **Bulk Actions** — update semua image, restart semua, compose up/down/pull, prune volumes/images
+- **Docker Images** — list, pull update, hapus
 - **Docker Compose** — view, edit, backup, validate config
-- **GNU Screen** — list, attach, create new session, run commands in background, kill session
-- **Extras** — manage alias/bashrc, cron job viewer & editor, rclone copy from cloud
-- **Server Report** — generate full server documentation (hardware, storage, network, docker, cron, etc.)
-- **Settings** — configure all parameters directly from TUI
-- **Hybrid UI** — navigation via Curses, output via Rich (colored tables, syntax highlight, progress bar)
+- **GNU Screen** — list, attach, buat session baru, jalankan command di background, kill session
+- **Extras** — kelola alias/bashrc, cron job viewer & editor, rclone copy dari cloud
+- **Server Report** — generate dokumentasi server lengkap (hardware, storage, network, docker, cron, dll)
+- **Settings** — konfigurasi semua parameter langsung dari TUI
+- **Hybrid UI** — navigasi pakai Curses, output pakai Rich (tabel berwarna, syntax highlight, progress bar)
 
 ---
 
-## 📦 Installation
+## 📦 Instalasi
 
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/bugsdroid/dockman/main/install-dockman.sh)
 ```
 
-The installer automatically handles dependencies: Python3, pip, Rich, Docker, GNU Screen, rclone, nano.
+Installer otomatis mengurus dependensi: Python3, pip, Rich, Docker, GNU Screen, rclone, nano.
 
 | OS | Package Manager |
 |---|---|
@@ -69,72 +69,72 @@ The installer automatically handles dependencies: Python3, pip, Rich, Docker, GN
 ### Update & Uninstall
 
 ```bash
-# Update to latest version
+# Update ke versi terbaru
 bash <(curl -fsSL https://raw.githubusercontent.com/bugsdroid/dockman/main/install-dockman.sh)
 
 # Uninstall
 bash <(curl -fsSL https://raw.githubusercontent.com/bugsdroid/dockman/main/install-dockman.sh) uninstall
 
-# Check dependencies
+# Cek dependensi
 bash <(curl -fsSL https://raw.githubusercontent.com/bugsdroid/dockman/main/install-dockman.sh) check
 ```
 
 ---
 
-## 🚀 Usage
+## 🚀 Penggunaan
 
 ```bash
-dockman              # Interactive TUI (default)
+dockman              # TUI interaktif (default)
 dockman --menu       # Numbered menu (fallback)
-dockman --setup      # Initial setup wizard
-dockman --debug      # TUI + traceback on error
-dockman --version    # Show version
+dockman --setup      # Wizard konfigurasi awal
+dockman --debug      # TUI + traceback jika error
+dockman --version    # Versi
 ```
 
-### CLI Commands (without TUI)
+### CLI Commands (tanpa TUI)
 
 ```bash
-dockman ps                # List all containers
+dockman ps                # List semua container
 dockman images            # List docker images
-dockman stats             # Resource usage snapshot
-dockman df                # Docker disk usage
-dockman logs <name>       # Last 50 lines of logs
-dockman logs <name> <n>   # Last n lines of logs
+dockman stats             # Snapshot resource usage
+dockman df                # Disk usage docker
+dockman logs <name>       # Logs 50 baris terakhir
+dockman logs <name> <n>   # Logs n baris
 dockman live <name>       # Live streaming logs
 dockman inspect <name>    # Inspect container (JSON)
 dockman screens           # List GNU screen sessions
 dockman report            # Generate server report
-dockman report <path>     # Generate to custom path
+dockman report <path>     # Generate ke path custom
 ```
 
 ---
 
-## ⌨️ TUI Navigation
+## ⌨️ Navigasi TUI
 
-| Key | Action |
+| Key | Aksi |
 |---|---|
-| `↑` / `k` | Up |
-| `↓` / `j` | Down |
-| `Enter` | Select / open menu |
-| `q` / `Esc` | Back / quit |
-| `r` | Refresh containers |
-| `a` | All container actions |
-| `i` | Images list |
+| `↑` / `k` | Naik |
+| `↓` / `j` | Turun |
+| `Enter` | Pilih / buka menu |
+| `q` / `Esc` | Kembali / keluar |
+| `r` | Refresh container |
+| `a` | Aksi semua container |
+| `i` | Daftar images |
 | `s` | Docker stats |
 | `d` | Disk usage |
 | `c` | Docker Compose |
 | `x` | Extras (alias, cron, rclone, report) |
 | `w` | GNU Screen manager |
-| `t` | Settings / configuration |
+| `t` | Settings / konfigurasi |
 | `?` | Help |
 
-> **Tip:** In any menu, items marked `[X]` can be selected instantly by pressing that letter.
+> **Tip:** Di setiap menu, item dengan `[X]` bisa dipilih langsung dengan menekan huruf tersebut.
 
 ---
 
-## ⚙️ Configuration
+## ⚙️ Konfigurasi
 
-Config is stored at `~/.config/dockman/config.ini`.
+Config disimpan di `~/.config/dockman/config.ini`.
 
 ```ini
 [general]
@@ -158,31 +158,31 @@ dest_sonarr     = /mnt/media/downloads/complete/sonarr
 file            = /home/user/.bashrc
 ```
 
-The setup wizard runs automatically on first launch.
+Saat pertama kali dijalankan, wizard setup akan berjalan otomatis.
 
 ---
 
 ## 📋 Releases
 
-| Version | Date | Notes |
+| Versi | Tanggal | Keterangan |
 |---|---|---|
-| [v2.2.0](https://github.com/bugsdroid/dockman/releases/tag/v2.2.0) | 2026-04-28 | Home Dashboard, animated banner, remote install |
+| [v2.2.0](https://github.com/bugsdroid/dockman/releases/tag/v2.2.0) | 2026-04-28 | Home Dashboard, banner animasi, remote install |
 | v2.1.0 | 2026-04-20 | GNU Screen, rclone, server report, wizard |
 | v2.0.0 | 2026-04-10 | Hybrid UI (Curses + Rich), CLI commands |
-| v1.0.0 | 2026-03-01 | First release |
+| v1.0.0 | 2026-03-01 | Versi pertama |
 
-See [CHANGELOG.md](CHANGELOG.md) for detailed changes per version.
+Lihat [CHANGELOG.md](CHANGELOG.md) untuk detail perubahan setiap versi.
 
 ---
 
-## 📁 File Locations
+## 📁 Lokasi File
 
 | File | Path |
 |---|---|
 | Binary | `/usr/local/bin/dockman` |
 | Config | `~/.config/dockman/config.ini` |
 | Server Report | `<doc_output_dir>/server-docs-YYYYMMDD.txt` |
-| Binary backup | `/usr/local/bin/dockman.bak_YYYYMMDD_HHMMSS` |
+| Backup binary | `/usr/local/bin/dockman.bak_YYYYMMDD_HHMMSS` |
 
 ---
 
@@ -201,58 +201,58 @@ cd dockman_main
 python3 build.py
 # Output: dist/dockman.py
 
-# Test without installing
+# Test tanpa install
 python3 dist/dockman.py --version
 python3 dist/dockman.py ps
 
-# Install for TUI testing
+# Install untuk test TUI
 sudo cp dist/dockman.py /usr/local/bin/dockman
 dockman
 ```
 
-### Architecture
+### Arsitektur
 
 ```
 dockman/
 ├── dockman_main/       # Source code
-│   ├── core/           # Business logic (no UI)
+│   ├── core/           # Business logic (tanpa UI)
 │   │   ├── config.py
 │   │   ├── docker.py
 │   │   ├── utils.py
 │   │   └── serverdocs.py
 │   ├── ui/             # UI layer
-│   │   ├── curses_ui.py   # Interactive TUI
-│   │   ├── rich_ui.py     # Table & log output
+│   │   ├── curses_ui.py   # TUI interaktif
+│   │   ├── rich_ui.py     # Output tabel & logs
 │   │   ├── cli_menu.py    # Numbered menu fallback
 │   │   └── wizard.py      # Setup wizard
 │   ├── main.py
 │   └── build.py
-├── dockman.py          # Pre-built single file (ready to install)
+├── dockman.py          # Pre-built single file (siap install)
 ├── install-dockman.sh  # Universal installer
-├── image-assets/       # Logo & screenshots
+├── image-assets/       # Logo & screenshot
 ├── CHANGELOG.md
 └── TECHNICAL.md
 ```
 
-**Rule:** `core/` must not import from `ui/`. The build system compiles all files into a single `dockman.py`.
+**Aturan:** `core/` tidak boleh import dari `ui/`. Build system meng-compile semua file menjadi satu `dockman.py`.
 
 ---
 
-## 📋 Dependencies
+## 📋 Dependensi
 
 - Python 3.8+
-- [Rich](https://github.com/Textualize/rich) — beautiful terminal output
+- [Rich](https://github.com/Textualize/rich) — output terminal yang indah
 - Docker Engine
 - GNU Screen
-- rclone *(optional, for cloud copy feature)*
-- nano *(or any other editor)*
+- rclone *(opsional, untuk fitur cloud copy)*
+- nano *(atau editor lain)*
 
 ---
 
-## 📄 License
+## 📄 Lisensi
 
-MIT License — free to use and modify.
+MIT License — bebas digunakan dan dimodifikasi.
 
 ---
 
-*Built for personal media servers. Tested on Ubuntu/Debian.*
+*Dibuat untuk personal media server. Tested di Ubuntu/Debian.*
