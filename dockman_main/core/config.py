@@ -9,7 +9,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-VERSION    = "2.2.0"
+VERSION    = "2.2.1"
 APP_NAME   = "DOCKMAN"
 CONFIG_DIR  = Path.home() / ".config" / "dockman"
 CONFIG_FILE = CONFIG_DIR / "config.ini"

@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================
-#  DOCKMAN Universal Installer v2.3
+#  DOCKMAN Universal Installer v2.4
 #  Support: Ubuntu/Debian, RHEL/CentOS/Fedora, Arch, Alpine
 #
 #  Install/Update langsung dari GitHub (tanpa clone):
@@ -174,6 +174,102 @@ setup_docker_group() {
     fi
 }
 
+# ── Setup rclone + Mega ────────────────────────────────────────────────────────
+install_rclone() {
+    if command -v rclone &>/dev/null; then
+        ok "rclone sudah terinstall ($(rclone --version 2>/dev/null | head -1))"
+        return 0
+    fi
+    warn "rclone tidak ditemukan, menginstall..."
+    if curl -fsSL https://rclone.org/install.sh | sudo bash &>/dev/null; then
+        ok "rclone berhasil diinstall"
+    else
+        warn "Auto-install rclone gagal. Install manual:"
+        warn "  curl https://rclone.org/install.sh | sudo bash"
+        return 1
+    fi
+}
+
+setup_rclone_mega() {
+    # Cek apakah rclone tersedia
+    if ! command -v rclone &>/dev/null; then
+        warn "rclone tidak terinstall, skip konfigurasi Mega."
+        return 0
+    fi
+
+    echo ""
+    echo -e "  ${C_BOLD}--- Konfigurasi rclone Mega ---${C_RESET}"
+
+    # Cek apakah remote mega sudah ada
+    local existing_remotes
+    existing_remotes=$(rclone listremotes 2>/dev/null || echo "")
+
+    if echo "$existing_remotes" | grep -q "mega:"; then
+        ok "Remote 'mega' sudah terkonfigurasi"
+        info "Remote yang ada: $(echo $existing_remotes | tr '\n' ' ')"
+        return 0
+    fi
+
+    # Cek apakah ada remote lain selain mega
+    if [[ -n "$existing_remotes" ]]; then
+        info "Remote rclone yang ada:"
+        echo "$existing_remotes" | while read -r r; do
+            info "  - $r"
+        done
+        echo ""
+        warn "Remote 'mega' belum ditemukan."
+    else
+        warn "Belum ada remote rclone yang dikonfigurasi."
+    fi
+
+    echo ""
+    echo -e "  ${C_YELLOW}Dockman menggunakan rclone untuk copy file dari Mega cloud.${C_RESET}"
+    echo -e "  ${C_YELLOW}Tanpa konfigurasi ini, fitur Rclone di dockman tidak akan berfungsi.${C_RESET}"
+    echo ""
+    read -rp "  Setup koneksi Mega sekarang? (y/N): " setup_now
+
+    if [[ "${setup_now,,}" != "y" ]]; then
+        warn "Skip konfigurasi Mega."
+        warn "Untuk setup nanti, jalankan: rclone config"
+        warn "Pilih: n (new remote) -> nama: mega -> tipe: mega -> masukkan email & password"
+        return 0
+    fi
+
+    echo ""
+    echo -e "  ${C_BOLD}Panduan setup Mega di rclone:${C_RESET}"
+    echo "  1. Pilih  'n' (New remote)"
+    echo "  2. Nama   -> ketik: mega"
+    echo "  3. Tipe   -> cari dan pilih: mega"
+    echo "  4. Email  -> masukkan email akun Mega kamu"
+    echo "  5. Password -> masukkan password Mega kamu"
+    echo "  6. Sisanya -> Enter saja (default)"
+    echo "  7. Pilih  'q' untuk quit setelah selesai"
+    echo ""
+    read -rp "  Tekan Enter untuk mulai rclone config..." _
+    echo ""
+
+    rclone config
+
+    # Verifikasi setelah config
+    echo ""
+    local after_remotes
+    after_remotes=$(rclone listremotes 2>/dev/null || echo "")
+    if echo "$after_remotes" | grep -q "mega:"; then
+        ok "Remote 'mega' berhasil dikonfigurasi!"
+
+        # Test koneksi
+        info "Mencoba koneksi ke Mega..."
+        if rclone lsd mega: &>/dev/null; then
+            ok "Koneksi ke Mega berhasil!"
+        else
+            warn "Koneksi ke Mega gagal. Cek email/password atau jalankan: rclone config"
+        fi
+    else
+        warn "Remote 'mega' tidak ditemukan setelah konfigurasi."
+        warn "Jalankan manual: rclone config"
+    fi
+}
+
 # ── Download pre-built binary dari GitHub ─────────────────────────────────────
 do_download() {
     info "Mengunduh dockman.py dari GitHub..."
@@ -273,7 +369,18 @@ if [[ "${1}" == "check" ]]; then
     install_rich || true
     install_docker || true
     install_pkg "screen" "screen" "optional" || true
-    command -v rclone &>/dev/null && ok "rclone terinstall" || warn "rclone tidak ditemukan"
+    # Cek rclone
+    if command -v rclone &>/dev/null; then
+        ok "rclone terinstall"
+        remotes=$(rclone listremotes 2>/dev/null || echo "")
+        if echo "$remotes" | grep -q "mega:"; then
+            ok "rclone remote 'mega' terkonfigurasi"
+        else
+            warn "rclone remote 'mega' belum dikonfigurasi. Jalankan: rclone config"
+        fi
+    else
+        warn "rclone tidak ditemukan"
+    fi
     install_pkg "nano" "nano" "optional" || true
     echo ""
     ok "Cek selesai."
@@ -285,7 +392,6 @@ fi
 echo ""
 echo -e "  ${C_BOLD}========================================${C_RESET}"
 if [[ -f "$INSTALL_PATH" ]]; then
-    # Tampilkan versi lama vs baru
     OLD_VER=$("$INSTALL_PATH" --version 2>/dev/null | awk '{print $2}' || echo "?")
     echo -e "  ${C_BOLD}  DOCKMAN - Update (versi saat ini: $OLD_VER)${C_RESET}"
 else
@@ -299,27 +405,32 @@ info "Mode       : $([ $LOCAL_MODE -eq 1 ] && echo 'lokal (build dari source)' |
 line
 
 echo ""
-echo -e "  ${C_BOLD}[1/6] Python3${C_RESET}"
+echo -e "  ${C_BOLD}[1/7] Python3${C_RESET}"
 ensure_python
 
 echo ""
-echo -e "  ${C_BOLD}[2/6] pip${C_RESET}"
+echo -e "  ${C_BOLD}[2/7] pip${C_RESET}"
 ensure_pip
 
 echo ""
-echo -e "  ${C_BOLD}[3/6] Rich (Python library)${C_RESET}"
+echo -e "  ${C_BOLD}[3/7] Rich (Python library)${C_RESET}"
 install_rich || true
 
 echo ""
-echo -e "  ${C_BOLD}[4/6] Docker${C_RESET}"
+echo -e "  ${C_BOLD}[4/7] Docker${C_RESET}"
 install_docker || warn "Docker perlu diinstall manual"
 
 echo ""
-echo -e "  ${C_BOLD}[5/6] GNU Screen${C_RESET}"
+echo -e "  ${C_BOLD}[5/7] GNU Screen${C_RESET}"
 install_pkg "screen" "screen" "optional" || true
 
 echo ""
-echo -e "  ${C_BOLD}[6/6] nano (editor)${C_RESET}"
+echo -e "  ${C_BOLD}[6/7] rclone + Mega${C_RESET}"
+install_rclone || true
+setup_rclone_mega || true
+
+echo ""
+echo -e "  ${C_BOLD}[7/7] nano (editor)${C_RESET}"
 install_pkg "nano" "nano" "optional" || true
 
 line
@@ -370,6 +481,9 @@ echo "    dockman --help       -> Semua command"
 echo ""
 echo "  UPDATE ke versi terbaru:"
 echo "    bash <(curl -fsSL https://raw.githubusercontent.com/bugsdroid/dockman/main/install-dockman.sh)"
+echo ""
+echo "  Versi spesifik (contoh v2.2.0):"
+echo "    bash <(curl -fsSL https://raw.githubusercontent.com/bugsdroid/dockman/v2.2.0/install-dockman.sh)"
 echo ""
 echo "  UNINSTALL:"
 echo "    bash <(curl -fsSL https://raw.githubusercontent.com/bugsdroid/dockman/main/install-dockman.sh) uninstall"
