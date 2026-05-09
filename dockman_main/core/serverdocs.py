@@ -87,9 +87,54 @@ class ServerDocsGenerator:
 
     def section_firewall(self):
         self._w(_section("FIREWALL (UFW)"))
-        out = _run("ufw status verbose 2>/dev/null")
-        self._w(out if "active" in out.lower() or "inactive" in out.lower()
-                else "UFW tidak terinstall atau tidak aktif.")
+
+        # Strategy 1: sudo -n (passwordless sudo)
+        out, err, code = run_cmd("sudo -n ufw status verbose 2>/dev/null", timeout=5)
+        if code == 0 and out.strip() and ("active" in out.lower() or "inactive" in out.lower()):
+            self._w(out)
+            return
+
+        # Strategy 2: ufw tanpa sudo (capture stdout+stderr)
+        out2, err2, code2 = run_cmd("ufw status verbose 2>&1", timeout=5)
+        if out2 and ("active" in out2.lower() or "inactive" in out2.lower()):
+            self._w(out2)
+            return
+
+        # Strategy 3: baca /etc/ufw/ufw.conf langsung (tidak butuh root)
+        ufw_conf = ""
+        try:
+            with open("/etc/ufw/ufw.conf") as f:
+                ufw_conf = f.read()
+        except Exception:
+            pass
+
+        if ufw_conf:
+            enabled = "yes" if "ENABLED=yes" in ufw_conf.upper() else "no"
+            self._w(f"UFW ENABLED (dari /etc/ufw/ufw.conf): {enabled.upper()}")
+            self._w(f"(Jalankan 'sudo ufw status verbose' untuk detail lengkap)")
+            self._w("")
+            self._w(ufw_conf)
+            return
+
+        # Strategy 4: cek via systemctl
+        out3, _, code3 = run_cmd("systemctl is-active ufw 2>/dev/null", timeout=5)
+        if out3.strip():
+            self._w(f"UFW service status (systemctl): {out3.strip()}")
+            self._w("")
+
+        # Strategy 5: iptables sebagai fallback
+        out4, _, code4 = run_cmd("sudo -n iptables -L ufw-user-input -n 2>/dev/null | head -5", timeout=5)
+        if code4 == 0 and out4.strip():
+            self._w("UFW iptables rules terdeteksi:")
+            self._w(out4)
+            return
+
+        # Tidak ada yang berhasil
+        if not out3.strip():
+            self._w("UFW tidak terinstall atau tidak terdeteksi.")
+        else:
+            self._w("UFW terdeteksi tapi butuh sudo untuk melihat detail.")
+            self._w("Jalankan: sudo dockman report  atau  sudo ufw status verbose")
 
     def section_software(self):
         self._w(_section("PACKAGE & SOFTWARE"))
