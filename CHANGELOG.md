@@ -5,6 +5,28 @@ Format: `[versi] - tanggal` → `Added / Changed / Fixed`
 
 ---
 
+## [2.3.0] - 2026-05-10
+
+### Changed
+- **`dockman --menu`**: Redesign tampilan menjadi layout 2 kolom seperti v2.1.x
+  - Header: `DOCKMAN vX.X.X — hostname — username` (cyan bold)
+  - Kolom kiri: CONTAINER, COMPOSE, GNU SCREEN
+  - Kolom kanan: MAINTENANCE, EXTRAS, SETTINGS
+  - Tidak menampilkan spek hardware/software
+  - Pemisah dan `0. Keluar` berwarna merah
+- Source files sekarang lengkap di `dockman_main/` (sebelumnya hanya `__init__.py`)
+
+### Fixed
+- **UFW detection** di server report: multi-fallback strategy
+  1. `sudo -n ufw status verbose` (passwordless sudo)
+  2. `ufw status verbose 2>&1` (capture stdout+stderr)
+  3. Baca `/etc/ufw/ufw.conf` langsung (tidak butuh root)
+  4. `systemctl is-active ufw`
+  5. `sudo -n iptables -L ufw-user-input` sebagai last resort
+  - Sebelumnya: UFW selalu muncul "tidak terdeteksi" saat dockman dijalankan sebagai non-root
+
+---
+
 ## [2.2.0] - 2026-04-28
 
 ### Added
