@@ -1,6 +1,6 @@
 """
 ui/cli_menu.py - Numbered menu fallback untuk Dockman
-Layout 2 kolom seperti screenshot v2.1.x
+Layout 3 kolom: CONTAINER|COMPOSE|MAINTENANCE dan GNU SCREEN|EXTRAS|SETTINGS
 """
 
 import os
@@ -49,7 +49,7 @@ def docker_get_all():
 
 
 def run_menu():
-    """Main loop menu numbered - layout 2 kolom."""
+    """Main loop menu numbered - layout 3 kolom."""
 
     while True:
         compose_file = get_compose_file()
@@ -72,60 +72,56 @@ def run_menu():
         print(f"  \033[1;36mDOCKMAN v{VERSION}  \u2014  {hostname}  \u2014  {cur_user}\033[0m")
         print()
 
-        # ── 2-column menu layout ─────────────────────────────────────────────
-        COL_W = 30  # lebar kolom kiri
+        # ── 3-column menu layout ─────────────────────────────────────────────
+        COL_W = 26  # lebar tiap kolom
+        GAP   = 2   # spasi antar kolom
 
-        def section_header(left, right=""):
-            import re
-            l = f"\033[1;36m{left}\033[0m"
-            r = f"\033[1;36m{right}\033[0m" if right else ""
-            l_plain = re.sub(r'\033\[[0-9;]*m', '', l)
-            pad = max(0, COL_W - len(l_plain))
-            print(f"  {l}{' ' * pad}  {r}")
-
-        def item(left_num, left_text, right_num="", right_text=""):
-            if left_num:
-                l = f"{left_num}. {left_text}"
+        def row3(c1="", c2="", c3="", hdr=False):
+            """Cetak satu baris 3 kolom."""
+            CYAN  = "\033[1;36m"
+            RESET = "\033[0m"
+            if hdr:
+                l1 = f"{CYAN}{c1}{RESET}"
+                l2 = f"{CYAN}{c2}{RESET}"
+                l3 = f"{CYAN}{c3}{RESET}"
             else:
-                l = ""
-            r = f"{right_num}. {right_text}" if right_num else ""
-            pad = max(0, COL_W - len(l))
-            print(f"  {l}{' ' * pad}  {r}")
+                l1, l2, l3 = c1, c2, c3
+            import re as _re
+            p1 = max(0, COL_W - len(_re.sub(r'\033\[[0-9;]*m', '', l1)))
+            p2 = max(0, COL_W - len(_re.sub(r'\033\[[0-9;]*m', '', l2)))
+            print(f"  {l1}{' '*p1}{' '*GAP}{l2}{' '*p2}{' '*GAP}{l3}")
 
-        # CONTAINER  |  MAINTENANCE
-        section_header("CONTAINER", "MAINTENANCE")
-        item("1",  "List semua container",       "14", "Prune image")
-        item("2",  "Update image (1 container)", "15", "Prune volumes")
-        item("3",  "Update SEMUA image",          "16", "Prune TOTAL")
-        item("4",  "Restart container",           "17", "Disk usage")
-        item("5",  "Restart SEMUA")
-        item("6",  "Docker Stats")
-        item("7",  "Lihat logs")
-        item("8",  "Exec shell")
+        def mi(n1, t1, n2="", t2="", n3="", t3=""):
+            """Menu item 3 kolom."""
+            c1 = f"{n1}. {t1}" if n1 else ""
+            c2 = f"{n2}. {t2}" if n2 else ""
+            c3 = f"{n3}. {t3}" if n3 else ""
+            row3(c1, c2, c3)
+
+        # ── Baris atas: CONTAINER | COMPOSE | MAINTENANCE ────────────────────
+        row3("CONTAINER",     "COMPOSE",          "MAINTENANCE",  hdr=True)
+        mi("1",  "List container",    "9",  "Compose UP",    "14", "Prune image")
+        mi("2",  "Update image",      "10", "Compose DOWN",  "15", "Prune volumes")
+        mi("3",  "Update SEMUA",      "11", "Lihat compose", "16", "Prune TOTAL")
+        mi("4",  "Restart",           "12", "Edit compose",  "17", "Disk usage")
+        mi("5",  "Restart SEMUA",     "13", "Backup compose")
+        mi("6",  "Docker Stats")
+        mi("7",  "Lihat logs")
+        mi("8",  "Exec shell")
         print()
 
-        # COMPOSE  |  EXTRAS
-        section_header("COMPOSE", "EXTRAS")
-        item("9",  "Compose UP",                 "18", "Lihat alias")
-        item("10", "Compose DOWN",               "19", "Grep alias")
-        item("11", "Lihat compose.yml",          "20", "Edit bashrc")
-        item("12", "Edit compose.yml",           "21", "Lihat cron")
-        item("13", "Backup compose.yml",         "22", "Edit cron")
-        item("",   "",                           "23", f"Rclone {remote_name}.nz")
-        item("",   "",                           "24", "Server report")
+        # ── Baris bawah: GNU SCREEN | EXTRAS | SETTINGS ───────────────────
+        row3("GNU SCREEN",    "EXTRAS",            "SETTINGS",     hdr=True)
+        mi("25", "List session",      "18", "Lihat alias",   "31", "Lihat konfigurasi")
+        mi("26", "Attach",            "19", "Grep alias",    "32", "Wizard ulang")
+        mi("27", "Kill 1 session",    "20", "Edit bashrc")
+        mi("28", "Kill SEMUA",        "21", "Lihat cron")
+        mi("29", "Buat session",      "22", "Edit cron")
+        mi("30", "Cmd background",    "23", f"Rclone {remote_name}.nz")
+        mi("",   "",                  "24", "Server report")
         print()
 
-        # GNU SCREEN  |  SETTINGS
-        section_header("GNU SCREEN", "SETTINGS")
-        item("25", "List screen session",        "31", "Lihat konfigurasi")
-        item("26", "Attach ke session",          "32", "Wizard setup ulang")
-        item("27", "Kill 1 session")
-        item("28", "Kill SEMUA session")
-        item("29", "Buat session baru")
-        item("30", "Jalankan cmd background")
-        print()
-
-        print(f"  \033[2m{'-' * 62}\033[0m")
+        print(f"  \033[2m{'-' * 80}\033[0m")
         print(f"  \033[1;31m0. Keluar\033[0m")
         print()
         choice = input("  Pilih: ").strip()
