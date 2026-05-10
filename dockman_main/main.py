@@ -80,7 +80,7 @@ def run_tui():
 
 
 def run_cli_menu():
-    """Jalankan fallback menu numbered."""
+    """Jalankan menu numbered 2 kolom (default)."""
     from ui.cli_menu import run_menu
     run_menu()
 
@@ -145,8 +145,8 @@ def print_help():
   {config.APP_NAME} v{config.VERSION} - Docker Manager
 
   USAGE:
-    dockman                    TUI mode (Curses, default)
-    dockman --menu             Menu numbered (Rich output)
+    dockman                    Menu numbered 2 kolom (default)
+    dockman --tui              TUI mode (Curses interaktif)
     dockman --setup            Setup wizard
     dockman --debug            TUI + detail error
     dockman --version          Tampilkan versi
@@ -215,30 +215,31 @@ def main():
         run_cli_menu()
         return
 
-    debug_mode = "--debug" in args
-    dockman_banner(skip=debug_mode)
+    # --tui flag untuk TUI curses (opsional)
+    if "--tui" in args:
+        debug_mode = "--debug" in args
+        dockman_banner(skip=debug_mode)
+        if not os.environ.get("TERM"):
+            os.environ["TERM"] = "xterm-256color"
+        tui_error = None
+        try:
+            run_tui()
+            return
+        except Exception as e:
+            tui_error = e
+        if debug_mode:
+            print(f"\n  TUI Error: {type(tui_error).__name__}: {tui_error}")
+            traceback.print_exc()
+            print(f"\n  TERM   = {os.environ.get('TERM')}")
+            print(f"  Config = {config.CONFIG_FILE}")
+            sys.exit(1)
+        else:
+            print(f"\n  WARN: TUI gagal ({type(tui_error).__name__}), beralih ke menu...")
+            print("  Tip: dockman --debug untuk detail\n")
+            time.sleep(1)
 
-    if not os.environ.get("TERM"):
-        os.environ["TERM"] = "xterm-256color"
-
-    tui_error = None
-    try:
-        run_tui()
-        return
-    except Exception as e:
-        tui_error = e
-
-    if debug_mode:
-        print(f"\n  TUI Error: {type(tui_error).__name__}: {tui_error}")
-        traceback.print_exc()
-        print(f"\n  TERM   = {os.environ.get('TERM')}")
-        print(f"  Config = {config.CONFIG_FILE}")
-        sys.exit(1)
-    else:
-        print(f"\n  WARN: TUI gagal ({type(tui_error).__name__}), beralih ke --menu...")
-        print("  Tip: dockman --debug untuk detail\n")
-        time.sleep(1)
-        run_cli_menu()
+    # Default: numbered menu 2 kolom
+    run_cli_menu()
 
 
 if __name__ == "__main__":
