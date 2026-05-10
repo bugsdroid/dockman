@@ -28,8 +28,8 @@ Dockman is a Python-based TUI (Terminal User Interface) for managing Docker cont
 
 ## 🆕 What's New in v2.3.0
 
-### Menu redesign (`dockman --menu`)
-The numbered menu is now a clean **2-column layout** — no more scrolling through a long single list:
+### 🗂️ Menu redesign — 2-column layout
+`dockman` now opens directly into a clean **2-column numbered menu** — no more neofetch-style dashboard on startup:
 
 ```
   DOCKMAN v2.3.0  —  rlserver  —  suhu
@@ -45,7 +45,7 @@ The numbered menu is now a clean **2-column layout** — no more scrolling throu
   8. Exec shell
 
   COMPOSE                         EXTRAS
-  9. Compose UP                   18. Lihat alias
+  9.  Compose UP                  18. Lihat alias
   10. Compose DOWN                19. Grep alias
   11. Lihat compose.yml           20. Edit bashrc
   12. Edit compose.yml            21. Lihat cron
@@ -65,23 +65,25 @@ The numbered menu is now a clean **2-column layout** — no more scrolling throu
   0. Keluar
 ```
 
-### UFW firewall detection fix (server report)
-Previously, UFW always showed as "not detected" when dockman ran as a non-root user (stderr was discarded). Now uses a 5-step fallback:
+The old curses TUI is still available via `dockman --tui`.
+
+### 🔥 UFW firewall detection fix (server report)
+UFW always showed as “not detected” when running as non-root. Now uses a 5-step fallback:
 1. `sudo -n ufw status verbose` (passwordless sudo)
 2. `ufw status verbose 2>&1` (capture stderr too)
 3. Read `/etc/ufw/ufw.conf` directly (no root needed)
 4. `systemctl is-active ufw`
 5. `iptables -L ufw-user-input` as last resort
 
-### Installer now builds from source
-The installer (`install-dockman.sh`) now does `git clone --depth=1` + `python3 build.py` instead of downloading a pre-built binary. This means you always get the exact latest version from source.
+### 📦 Installer now builds from source
+`install-dockman.sh` now does `git clone --depth=1` + `python3 build.py` — always gets the exact latest version from source, no pre-built binary required.
 
 ---
 
 ## 🤔 Why Dockman?
 
 - No need to remember long Docker commands
-- Clean interactive interface (TUI)
+- Clean interactive interface
 - Faster daily workflow
 - Beginner-friendly but powerful
 
@@ -97,8 +99,7 @@ The installer (`install-dockman.sh`) now does `git clone --depth=1` + `python3 b
 
 ## ✨ Features
 
-- **Interactive TUI** — keyboard navigation, anti-flicker, letter shortcuts `[X]`
-- **Home Dashboard** — neofetch-style: sysinfo, RAM, storage bar, block devices, docker summary
+- **2-Column Menu** — clean numbered menu, no scrolling
 - **Container Management** — view logs, live logs, restart, stop/start, exec shell, pull image, remove
 - **Bulk Actions** — update all images, restart all, compose up/down/pull, prune volumes/images
 - **Docker Images** — list, pull update, delete
@@ -106,8 +107,9 @@ The installer (`install-dockman.sh`) now does `git clone --depth=1` + `python3 b
 - **GNU Screen** — list, attach, create new session, run commands in background, kill session
 - **Extras** — manage alias/bashrc, cron job viewer & editor, rclone copy from cloud
 - **Server Report** — generate full server documentation (hardware, storage, network, docker, cron, etc.)
-- **Settings** — configure all parameters directly from TUI
-- **Hybrid UI** — navigation via Curses, output via Rich (colored tables, syntax highlight, progress bar)
+- **Settings** — configure all parameters directly from menu
+- **TUI mode** — optional curses dashboard via `dockman --tui`
+- **Rich output** — colored tables, syntax highlight, progress bar
 
 ---
 
@@ -145,14 +147,13 @@ bash <(curl -fsSL https://raw.githubusercontent.com/bugsdroid/dockman/main/insta
 ## 🚀 Usage
 
 ```bash
-dockman              # Interactive TUI (default)
-dockman --menu       # Numbered menu (fallback)
+dockman              # 2-column numbered menu (default)
+dockman --tui        # TUI curses interaktif (opsional)
 dockman --setup      # Initial setup wizard
-dockman --debug      # TUI + traceback on error
 dockman --version    # Show version
 ```
 
-### CLI Commands (without TUI)
+### CLI Commands (without menu)
 
 ```bash
 dockman ps                # List all containers
@@ -170,7 +171,13 @@ dockman report <path>     # Generate to custom path
 
 ---
 
-## ⌨️ TUI Navigation
+## ⌨️ Navigation
+
+In the menu, just type the number and press Enter.
+
+When Rich output appears (tables, logs, inspect), press `Enter` to return to menu.
+
+For `dockman --tui` curses mode:
 
 | Key | Action |
 |---|---|
@@ -180,16 +187,12 @@ dockman report <path>     # Generate to custom path
 | `q` / `Esc` | Back / quit |
 | `r` | Refresh containers |
 | `a` | All container actions |
-| `i` | Images list |
 | `s` | Docker stats |
-| `d` | Disk usage |
 | `c` | Docker Compose |
-| `x` | Extras (alias, cron, rclone, report) |
+| `x` | Extras |
 | `w` | GNU Screen manager |
-| `t` | Settings / configuration |
+| `t` | Settings |
 | `?` | Help |
-
-> **Tip:** In any menu, items marked `[X]` can be selected instantly by pressing that letter.
 
 ---
 
@@ -227,7 +230,7 @@ The setup wizard runs automatically on first launch.
 
 | Version | Date | Notes |
 |---|---|---|
-| [v2.3.0](https://github.com/bugsdroid/dockman/releases/tag/v2.3.0) | 2026-05-10 | 2-column menu, UFW fix, build-from-source installer |
+| [v2.3.0](https://github.com/bugsdroid/dockman/releases/tag/v2.3.0) | 2026-05-10 | 2-column menu default, UFW fix, build-from-source installer |
 | [v2.2.0](https://github.com/bugsdroid/dockman/releases/tag/v2.2.0) | 2026-04-28 | Home Dashboard, animated banner, remote install |
 | v2.1.0 | 2026-04-20 | GNU Screen, rclone, server report, wizard |
 | v2.0.0 | 2026-04-10 | Hybrid UI (Curses + Rich), CLI commands |
@@ -256,7 +259,7 @@ cd dockman
 pip install rich --break-system-packages
 
 # Edit source
-nano dockman_main/ui/curses_ui.py
+nano dockman_main/ui/cli_menu.py
 
 # Build single file
 cd dockman_main
@@ -265,9 +268,9 @@ python3 build.py
 
 # Test without installing
 python3 dist/dockman.py --version
-python3 dist/dockman.py ps
+python3 dist/dockman.py
 
-# Install for TUI testing
+# Install for testing
 sudo cp dist/dockman.py /usr/local/bin/dockman
 dockman
 ```
@@ -283,14 +286,14 @@ dockman/
 │   │   ├── utils.py
 │   │   └── serverdocs.py
 │   ├── ui/             # UI layer
-│   │   ├── curses_ui.py   # Interactive TUI
+│   │   ├── curses_ui.py   # TUI interaktif (dockman --tui)
 │   │   ├── rich_ui.py     # Table & log output
-│   │   ├── cli_menu.py    # Numbered menu fallback
+│   │   ├── cli_menu.py    # 2-column numbered menu (default)
 │   │   └── wizard.py      # Setup wizard
 │   ├── main.py
 │   └── build.py
 ├── install-dockman.sh  # Universal installer (builds from source)
-├── image-assets/       # Logo & screenshots
+├── image-assets/
 ├── CHANGELOG.md
 └── TECHNICAL.md
 ```

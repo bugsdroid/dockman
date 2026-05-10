@@ -8,13 +8,15 @@ Format: `[versi] - tanggal` → `Added / Changed / Fixed`
 ## [2.3.0] - 2026-05-10
 
 ### Changed
-- **`dockman --menu`**: Redesign tampilan menjadi layout 2 kolom seperti v2.1.x
+- **Default mode**: `dockman` tanpa argumen sekarang langsung masuk ke **numbered menu 2 kolom** (bukan TUI curses)
+- **`dockman --menu`**: Redesign tampilan menjadi layout 2 kolom
   - Header: `DOCKMAN vX.X.X — hostname — username` (cyan bold)
   - Kolom kiri: CONTAINER, COMPOSE, GNU SCREEN
   - Kolom kanan: MAINTENANCE, EXTRAS, SETTINGS
   - Tidak menampilkan spek hardware/software
-  - Pemisah dan `0. Keluar` berwarna merah
-- Source files sekarang lengkap di `dockman_main/` (sebelumnya hanya `__init__.py`)
+- **`dockman --tui`**: Flag baru untuk masuk ke TUI curses interaktif (sebelumnya default)
+- Source files sekarang lengkap di `dockman_main/`
+- Installer (`install-dockman.sh` v2.5): `git clone --depth=1` + `python3 build.py`, tidak lagi bergantung pre-built binary
 
 ### Fixed
 - **UFW detection** di server report: multi-fallback strategy
