@@ -11,7 +11,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.8%2B-blue?logo=python">
   <img src="https://img.shields.io/badge/License-MIT-green">
-  <img src="https://img.shields.io/badge/Version-2.2.1-orange">
+  <img src="https://img.shields.io/badge/Version-2.3.0-orange">
   <img src="https://img.shields.io/badge/Platform-Linux-lightgrey?logo=linux">
 </p>
 
@@ -23,6 +23,58 @@
 ---
 
 Dockman is a Python-based TUI (Terminal User Interface) for managing Docker containers, images, compose, GNU Screen, rclone, and server reports — all from one place, right in your terminal.
+
+---
+
+## 🆕 What's New in v2.3.0
+
+### Menu redesign (`dockman --menu`)
+The numbered menu is now a clean **2-column layout** — no more scrolling through a long single list:
+
+```
+  DOCKMAN v2.3.0  —  rlserver  —  suhu
+
+  CONTAINER                       MAINTENANCE
+  1. List semua container         14. Prune image
+  2. Update image (1 container)   15. Prune volumes
+  3. Update SEMUA image           16. Prune TOTAL
+  4. Restart container            17. Disk usage
+  5. Restart SEMUA
+  6. Docker Stats
+  7. Lihat logs
+  8. Exec shell
+
+  COMPOSE                         EXTRAS
+  9. Compose UP                   18. Lihat alias
+  10. Compose DOWN                19. Grep alias
+  11. Lihat compose.yml           20. Edit bashrc
+  12. Edit compose.yml            21. Lihat cron
+  13. Backup compose.yml          22. Edit cron
+                                  23. Rclone mega.nz
+                                  24. Server report
+
+  GNU SCREEN                      SETTINGS
+  25. List screen session         31. Lihat konfigurasi
+  26. Attach ke session           32. Wizard setup ulang
+  27. Kill 1 session
+  28. Kill SEMUA session
+  29. Buat session baru
+  30. Jalankan cmd background
+
+  ──────────────────────────────────────────────────────────────
+  0. Keluar
+```
+
+### UFW firewall detection fix (server report)
+Previously, UFW always showed as "not detected" when dockman ran as a non-root user (stderr was discarded). Now uses a 5-step fallback:
+1. `sudo -n ufw status verbose` (passwordless sudo)
+2. `ufw status verbose 2>&1` (capture stderr too)
+3. Read `/etc/ufw/ufw.conf` directly (no root needed)
+4. `systemctl is-active ufw`
+5. `iptables -L ufw-user-input` as last resort
+
+### Installer now builds from source
+The installer (`install-dockman.sh`) now does `git clone --depth=1` + `python3 build.py` instead of downloading a pre-built binary. This means you always get the exact latest version from source.
 
 ---
 
@@ -65,7 +117,7 @@ Dockman is a Python-based TUI (Terminal User Interface) for managing Docker cont
 bash <(curl -fsSL https://raw.githubusercontent.com/bugsdroid/dockman/main/install-dockman.sh)
 ```
 
-The installer automatically handles dependencies: Python3, pip, Rich, Docker, GNU Screen, rclone, nano.
+The installer automatically handles dependencies: Python3, pip, Rich, Git, Docker, GNU Screen, rclone, nano.
 
 | OS | Package Manager |
 |---|---|
@@ -175,6 +227,7 @@ The setup wizard runs automatically on first launch.
 
 | Version | Date | Notes |
 |---|---|---|
+| [v2.3.0](https://github.com/bugsdroid/dockman/releases/tag/v2.3.0) | 2026-05-10 | 2-column menu, UFW fix, build-from-source installer |
 | [v2.2.0](https://github.com/bugsdroid/dockman/releases/tag/v2.2.0) | 2026-04-28 | Home Dashboard, animated banner, remote install |
 | v2.1.0 | 2026-04-20 | GNU Screen, rclone, server report, wizard |
 | v2.0.0 | 2026-04-10 | Hybrid UI (Curses + Rich), CLI commands |
@@ -236,8 +289,7 @@ dockman/
 │   │   └── wizard.py      # Setup wizard
 │   ├── main.py
 │   └── build.py
-├── dockman.py          # Pre-built single file (ready to install)
-├── install-dockman.sh  # Universal installer
+├── install-dockman.sh  # Universal installer (builds from source)
 ├── image-assets/       # Logo & screenshots
 ├── CHANGELOG.md
 └── TECHNICAL.md
@@ -251,6 +303,7 @@ dockman/
 
 - Python 3.8+
 - [Rich](https://github.com/Textualize/rich) — beautiful terminal output
+- Git — for installation from source
 - Docker Engine
 - GNU Screen
 - rclone *(optional, for cloud copy feature)*
