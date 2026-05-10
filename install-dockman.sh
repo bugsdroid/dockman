@@ -1,32 +1,35 @@
 #!/bin/bash
 # ============================================================
-#  DOCKMAN Universal Installer v2.4
+#  DOCKMAN Universal Installer v2.5
 #  Support: Ubuntu/Debian, RHEL/CentOS/Fedora, Arch, Alpine
 #
-#  Install/Update langsung dari GitHub (tanpa clone):
+#  Install/Update langsung dari GitHub:
 #    bash <(curl -fsSL https://raw.githubusercontent.com/bugsdroid/dockman/main/install-dockman.sh)
 #
 #  Atau jika sudah punya file ini:
 #    bash install-dockman.sh            -> install / update
 #    bash install-dockman.sh uninstall  -> hapus dockman
 #    bash install-dockman.sh check      -> cek dependencies
+#    bash install-dockman.sh build      -> build saja (lokal)
 # ============================================================
 
 set -e
 
+REPO_URL="https://github.com/bugsdroid/dockman.git"
 REPO_RAW="https://raw.githubusercontent.com/bugsdroid/dockman/main"
 INSTALL_PATH="/usr/local/bin/dockman"
+BUILD_TMP="/tmp/dockman-build-$$"
 
-# Deteksi mode: lokal (ada build.py) atau remote (curl | bash)
-if [[ -n "${BASH_SOURCE[0]}" && "${BASH_SOURCE[0]}" != "bash" && -f "$(dirname "${BASH_SOURCE[0]}")/build.py" ]]; then
+# Deteksi mode: lokal (ada dockman_main/build.py) atau remote (curl | bash)
+if [[ -n "${BASH_SOURCE[0]}" && "${BASH_SOURCE[0]}" != "bash" && -f "$(dirname "${BASH_SOURCE[0]}")/dockman_main/build.py" ]]; then
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     LOCAL_MODE=1
 else
-    SCRIPT_DIR="/tmp"
+    SCRIPT_DIR="$BUILD_TMP"
     LOCAL_MODE=0
 fi
 
-DIST_FILE="$SCRIPT_DIR/dist/dockman.py"
+DIST_FILE="$SCRIPT_DIR/dockman_main/dist/dockman.py"
 
 # ── Warna ──────────────────────────────────────────────────────────────────────
 if [[ -t 1 ]] && command -v tput &>/dev/null && tput colors &>/dev/null 2>&1; then
@@ -135,7 +138,7 @@ install_rich() {
        python3 -m pip install rich -q 2>/dev/null; then
         ok "rich berhasil diinstall"
     else
-        warn "rich gagal diinstall. Output tidak berwarna."
+        warn "rich gagal diinstall."
         return 1
     fi
 }
@@ -152,13 +155,31 @@ install_docker() {
                 sudo systemctl enable --now docker &>/dev/null
                 ok "Docker berhasil diinstall"
             else
-                err "Docker gagal diinstall. Install manual: https://docs.docker.com/engine/install/"
+                err "Docker gagal diinstall."
                 return 1
             fi ;;
         redhat|arch|alpine)
             eval "$PKG_INSTALL docker" &>/dev/null && ok "Docker diinstall" || return 1 ;;
         *) err "Auto-install Docker tidak support di OS ini."; return 1 ;;
     esac
+}
+
+ensure_git() {
+    if command -v git &>/dev/null; then
+        ok "git tersedia"
+        return 0
+    fi
+    warn "git tidak ditemukan, menginstall..."
+    [[ -z "$PKG_INSTALL" ]] && { err "Package manager tidak dikenal."; return 1; }
+    if [[ -z "$REPO_UPDATED" && -n "$PKG_UPDATE" ]]; then
+        eval "$PKG_UPDATE" &>/dev/null; REPO_UPDATED=1
+    fi
+    if eval "$PKG_INSTALL git" &>/dev/null; then
+        ok "git berhasil diinstall"
+    else
+        err "git gagal diinstall!"
+        return 1
+    fi
 }
 
 setup_docker_group() {
@@ -174,7 +195,6 @@ setup_docker_group() {
     fi
 }
 
-# ── Setup rclone + Mega ────────────────────────────────────────────────────────
 install_rclone() {
     if command -v rclone &>/dev/null; then
         ok "rclone sudah terinstall ($(rclone --version 2>/dev/null | head -1))"
@@ -184,14 +204,12 @@ install_rclone() {
     if curl -fsSL https://rclone.org/install.sh | sudo bash &>/dev/null; then
         ok "rclone berhasil diinstall"
     else
-        warn "Auto-install rclone gagal. Install manual:"
-        warn "  curl https://rclone.org/install.sh | sudo bash"
+        warn "Auto-install rclone gagal."
         return 1
     fi
 }
 
 setup_rclone_mega() {
-    # Cek apakah rclone tersedia
     if ! command -v rclone &>/dev/null; then
         warn "rclone tidak terinstall, skip konfigurasi Mega."
         return 0
@@ -200,7 +218,6 @@ setup_rclone_mega() {
     echo ""
     echo -e "  ${C_BOLD}--- Konfigurasi rclone Mega ---${C_RESET}"
 
-    # Cek apakah remote mega sudah ada
     local existing_remotes
     existing_remotes=$(rclone listremotes 2>/dev/null || echo "")
 
@@ -210,7 +227,6 @@ setup_rclone_mega() {
         return 0
     fi
 
-    # Cek apakah ada remote lain selain mega
     if [[ -n "$existing_remotes" ]]; then
         info "Remote rclone yang ada:"
         echo "$existing_remotes" | while read -r r; do
@@ -224,14 +240,12 @@ setup_rclone_mega() {
 
     echo ""
     echo -e "  ${C_YELLOW}Dockman menggunakan rclone untuk copy file dari Mega cloud.${C_RESET}"
-    echo -e "  ${C_YELLOW}Tanpa konfigurasi ini, fitur Rclone di dockman tidak akan berfungsi.${C_RESET}"
     echo ""
     read -rp "  Setup koneksi Mega sekarang? (y/N): " setup_now
 
     if [[ "${setup_now,,}" != "y" ]]; then
         warn "Skip konfigurasi Mega."
         warn "Untuk setup nanti, jalankan: rclone config"
-        warn "Pilih: n (new remote) -> nama: mega -> tipe: mega -> masukkan email & password"
         return 0
     fi
 
@@ -250,15 +264,11 @@ setup_rclone_mega() {
 
     rclone config
 
-    # Verifikasi setelah config
     echo ""
     local after_remotes
     after_remotes=$(rclone listremotes 2>/dev/null || echo "")
     if echo "$after_remotes" | grep -q "mega:"; then
         ok "Remote 'mega' berhasil dikonfigurasi!"
-
-        # Test koneksi
-        info "Mencoba koneksi ke Mega..."
         if rclone lsd mega: &>/dev/null; then
             ok "Koneksi ke Mega berhasil!"
         else
@@ -270,37 +280,16 @@ setup_rclone_mega() {
     fi
 }
 
-# ── Download pre-built binary dari GitHub ─────────────────────────────────────
-do_download() {
-    info "Mengunduh dockman.py dari GitHub..."
-    local tmp_file="/tmp/dockman.py.$$"
-    if command -v curl &>/dev/null; then
-        curl -fsSL "${REPO_RAW}/dockman.py" -o "$tmp_file"
-    elif command -v wget &>/dev/null; then
-        wget -qO "$tmp_file" "${REPO_RAW}/dockman.py"
-    else
-        err "curl atau wget diperlukan untuk download!"
-        exit 1
-    fi
-    # Verifikasi file valid
-    if python3 -c "import ast; ast.parse(open('$tmp_file').read())" 2>/dev/null; then
-        DIST_FILE="$tmp_file"
-        ok "Download selesai"
-    else
-        err "File yang didownload tidak valid!"
-        rm -f "$tmp_file"
-        exit 1
-    fi
-}
-
 # ── Build dari source lokal ───────────────────────────────────────────────────
-do_build() {
-    info "Menjalankan build.py..."
-    if [[ ! -f "$SCRIPT_DIR/build.py" ]]; then
-        err "build.py tidak ditemukan di $SCRIPT_DIR"
+do_build_local() {
+    info "Mode lokal: build dari source..."
+    if [[ ! -f "$SCRIPT_DIR/dockman_main/build.py" ]]; then
+        err "build.py tidak ditemukan di $SCRIPT_DIR/dockman_main/"
         exit 1
     fi
-    python3 "$SCRIPT_DIR/build.py"
+    cd "$SCRIPT_DIR/dockman_main"
+    python3 build.py
+    DIST_FILE="$SCRIPT_DIR/dockman_main/dist/dockman.py"
     if [[ ! -f "$DIST_FILE" ]]; then
         err "Build gagal - dist/dockman.py tidak terbentuk"
         exit 1
@@ -308,16 +297,48 @@ do_build() {
     ok "Build selesai: $DIST_FILE"
 }
 
-# ── Ambil dockman.py: lokal build atau download ───────────────────────────────
+# ── Clone repo + build dari GitHub ───────────────────────────────────────────
+do_build_remote() {
+    info "Mode remote: clone repo dan build dari source..."
+
+    ensure_git || { err "git diperlukan untuk install. Install manual: sudo apt install git"; exit 1; }
+
+    rm -rf "$BUILD_TMP"
+    info "Cloning repository (shallow)..."
+    if git clone --depth=1 --quiet "$REPO_URL" "$BUILD_TMP" 2>/dev/null; then
+        ok "Clone selesai"
+    else
+        err "Clone gagal! Cek koneksi internet."
+        exit 1
+    fi
+
+    cd "$BUILD_TMP/dockman_main"
+    info "Building dockman.py dari source..."
+    python3 build.py
+
+    DIST_FILE="$BUILD_TMP/dockman_main/dist/dockman.py"
+    if [[ ! -f "$DIST_FILE" ]]; then
+        err "Build gagal - dist/dockman.py tidak terbentuk"
+        rm -rf "$BUILD_TMP"
+        exit 1
+    fi
+    ok "Build selesai"
+}
+
+# ── Ambil binary ──────────────────────────────────────────────────────────────
 do_get_binary() {
     if [[ $LOCAL_MODE -eq 1 ]]; then
-        info "Mode lokal: build dari source..."
-        do_build
+        do_build_local
     else
-        info "Mode remote: download pre-built binary..."
-        do_download
+        do_build_remote
     fi
 }
+
+# Cleanup tmp dir saat exit
+cleanup() {
+    [[ $LOCAL_MODE -eq 0 && -d "$BUILD_TMP" ]] && rm -rf "$BUILD_TMP"
+}
+trap cleanup EXIT
 
 # ══ UNINSTALL ══════════════════════════════════════════════════════════════════
 if [[ "${1}" == "uninstall" ]]; then
@@ -339,17 +360,18 @@ if [[ "${1}" == "uninstall" ]]; then
     exit 0
 fi
 
-# ══ BUILD ONLY (hanya mode lokal) ══════════════════════════════════════════════
+# ══ BUILD ONLY ═════════════════════════════════════════════════════════════════
 if [[ "${1}" == "build" ]]; then
     echo ""
     echo -e "  ${C_BOLD}DOCKMAN Build${C_RESET}"
     line
-    if [[ $LOCAL_MODE -eq 0 ]]; then
-        err "Mode build hanya tersedia jika dijalankan dari direktori source."
+    detect_os
+    if [[ $LOCAL_MODE -eq 1 ]]; then
+        do_build_local
+    else
+        err "Mode 'build' hanya tersedia dari direktori source lokal."
         exit 1
     fi
-    detect_os
-    do_build
     echo ""
     exit 0
 fi
@@ -368,8 +390,8 @@ if [[ "${1}" == "check" ]]; then
     ensure_pip
     install_rich || true
     install_docker || true
+    install_pkg "git"    "git"    "optional" || true
     install_pkg "screen" "screen" "optional" || true
-    # Cek rclone
     if command -v rclone &>/dev/null; then
         ok "rclone terinstall"
         remotes=$(rclone listremotes 2>/dev/null || echo "")
@@ -401,46 +423,48 @@ echo -e "  ${C_BOLD}========================================${C_RESET}"
 
 detect_os
 info "OS Family  : $OS_FAMILY"
-info "Mode       : $([ $LOCAL_MODE -eq 1 ] && echo 'lokal (build dari source)' || echo 'remote (download dari GitHub)')"
+info "Mode       : $([ $LOCAL_MODE -eq 1 ] && echo 'lokal (build dari source)' || echo 'remote (clone + build dari GitHub)')"
 line
 
 echo ""
-echo -e "  ${C_BOLD}[1/7] Python3${C_RESET}"
+echo -e "  ${C_BOLD}[1/8] Python3${C_RESET}"
 ensure_python
 
 echo ""
-echo -e "  ${C_BOLD}[2/7] pip${C_RESET}"
+echo -e "  ${C_BOLD}[2/8] pip${C_RESET}"
 ensure_pip
 
 echo ""
-echo -e "  ${C_BOLD}[3/7] Rich (Python library)${C_RESET}"
+echo -e "  ${C_BOLD}[3/8] Rich (Python library)${C_RESET}"
 install_rich || true
 
 echo ""
-echo -e "  ${C_BOLD}[4/7] Docker${C_RESET}"
+echo -e "  ${C_BOLD}[4/8] Git${C_RESET}"
+ensure_git || true
+
+echo ""
+echo -e "  ${C_BOLD}[5/8] Docker${C_RESET}"
 install_docker || warn "Docker perlu diinstall manual"
 
 echo ""
-echo -e "  ${C_BOLD}[5/7] GNU Screen${C_RESET}"
+echo -e "  ${C_BOLD}[6/8] GNU Screen${C_RESET}"
 install_pkg "screen" "screen" "optional" || true
 
 echo ""
-echo -e "  ${C_BOLD}[6/7] rclone + Mega${C_RESET}"
+echo -e "  ${C_BOLD}[7/8] rclone + Mega${C_RESET}"
 install_rclone || true
 setup_rclone_mega || true
 
 echo ""
-echo -e "  ${C_BOLD}[7/7] nano (editor)${C_RESET}"
+echo -e "  ${C_BOLD}[8/8] nano (editor)${C_RESET}"
 install_pkg "nano" "nano" "optional" || true
 
 line
 
-# ── Ambil binary ───────────────────────────────────────────────────────────────
 echo ""
 echo -e "  ${C_BOLD}Menyiapkan dockman.py...${C_RESET}"
 do_get_binary
 
-# ── Install ────────────────────────────────────────────────────────────────────
 echo ""
 echo -e "  ${C_BOLD}Installing...${C_RESET}"
 
@@ -454,17 +478,14 @@ sudo cp "$DIST_FILE" "$INSTALL_PATH"
 sudo chmod +x "$INSTALL_PATH"
 
 # Bersihkan tmp jika mode remote
-[[ $LOCAL_MODE -eq 0 ]] && rm -f "$DIST_FILE"
+[[ $LOCAL_MODE -eq 0 && -d "$BUILD_TMP" ]] && rm -rf "$BUILD_TMP"
 
-# Verifikasi
 NEW_VER=$("$INSTALL_PATH" --version 2>/dev/null | awk '{print $2}' || echo "?")
 ok "Installed: $INSTALL_PATH (v${NEW_VER})"
 
-# ── Docker group ───────────────────────────────────────────────────────────────
 echo ""
 setup_docker_group
 
-# ── Summary ────────────────────────────────────────────────────────────────────
 echo ""
 echo -e "  ${C_BOLD}========================================${C_RESET}"
 echo -e "  ${C_BOLD}  DOCKMAN v${NEW_VER} siap dipakai!${C_RESET}"
@@ -481,9 +502,6 @@ echo "    dockman --help       -> Semua command"
 echo ""
 echo "  UPDATE ke versi terbaru:"
 echo "    bash <(curl -fsSL https://raw.githubusercontent.com/bugsdroid/dockman/main/install-dockman.sh)"
-echo ""
-echo "  Versi spesifik (contoh v2.2.0):"
-echo "    bash <(curl -fsSL https://raw.githubusercontent.com/bugsdroid/dockman/v2.2.0/install-dockman.sh)"
 echo ""
 echo "  UNINSTALL:"
 echo "    bash <(curl -fsSL https://raw.githubusercontent.com/bugsdroid/dockman/main/install-dockman.sh) uninstall"
