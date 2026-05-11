@@ -81,8 +81,14 @@ UFW always showed as “not detected” when running as non-root. Now uses a 5-s
 
 ---
 
-## 📸 Screenshot
+## 📸 Screenshots
 
+**Main Menu (v2.3.0)**
+<p align="center">
+  <img src="image-assets/sc_new_menu.png" alt="Dockman 3-Column Menu" width="900"/>
+</p>
+
+**Home Dashboard (TUI mode)**
 <p align="center">
   <img src="image-assets/sc%20home.png" alt="Dockman Home Dashboard" width="900"/>
 </p>
@@ -283,7 +289,7 @@ dockman/
 │   ├── main.py
 │   └── build.py
 ├── install-dockman.sh  # Universal installer (builds from source)
-├── image-assets/
+├── image-assets/       # Logo & screenshots
 ├── CHANGELOG.md
 └── TECHNICAL.md
 ```
