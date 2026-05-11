@@ -8,15 +8,15 @@ Format: `[versi] - tanggal` → `Added / Changed / Fixed`
 ## [2.3.0] - 2026-05-10
 
 ### Changed
-- **Default mode**: `dockman` tanpa argumen sekarang langsung masuk ke **numbered menu 2 kolom** (bukan TUI curses)
-- **`dockman --menu`**: Redesign tampilan menjadi layout 2 kolom
+- **Default mode**: `dockman` tanpa argumen sekarang langsung masuk ke **numbered menu 3 kolom** (bukan TUI curses)
+- **Menu redesign**: Layout 3 kolom yang rapi
+  - Baris atas : `CONTAINER` | `COMPOSE` | `MAINTENANCE`
+  - Baris bawah: `GNU SCREEN` | `EXTRAS` | `SETTINGS`
   - Header: `DOCKMAN vX.X.X — hostname — username` (cyan bold)
-  - Kolom kiri: CONTAINER, COMPOSE, GNU SCREEN
-  - Kolom kanan: MAINTENANCE, EXTRAS, SETTINGS
-  - Tidak menampilkan spek hardware/software
 - **`dockman --tui`**: Flag baru untuk masuk ke TUI curses interaktif (sebelumnya default)
+- **`dockman --menu`**: Sama dengan default (backward compatible)
 - Source files sekarang lengkap di `dockman_main/`
-- Installer (`install-dockman.sh` v2.5): `git clone --depth=1` + `python3 build.py`, tidak lagi bergantung pre-built binary
+- Installer (`install-dockman.sh` v2.5): `git clone --depth=1` + `python3 build.py`
 
 ### Fixed
 - **UFW detection** di server report: multi-fallback strategy
@@ -25,7 +25,6 @@ Format: `[versi] - tanggal` → `Added / Changed / Fixed`
   3. Baca `/etc/ufw/ufw.conf` langsung (tidak butuh root)
   4. `systemctl is-active ufw`
   5. `sudo -n iptables -L ufw-user-input` sebagai last resort
-  - Sebelumnya: UFW selalu muncul "tidak terdeteksi" saat dockman dijalankan sebagai non-root
 
 ---
 
@@ -33,13 +32,7 @@ Format: `[versi] - tanggal` → `Added / Changed / Fixed`
 
 ### Added
 - **Home Dashboard** (neofetch-style) sebagai landing page saat `dockman` dijalankan
-  - System info: OS, Kernel, CPU, Cores, RAM, Uptime, Load
-  - Network interfaces dengan IP
-  - Storage dengan visual progress bar per mount point
-  - Block devices (lsblk) dengan tree view
-  - Docker summary (running/stopped/images)
 - **Banner animasi** `dockman>_` saat startup
-  - True color, 256-color, dan basic terminal support
 - `dockman --setup` bisa dijalankan kapan saja
 - Auto-install Python, pip, Rich di installer
 

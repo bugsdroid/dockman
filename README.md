@@ -28,40 +28,32 @@ Dockman is a Python-based TUI (Terminal User Interface) for managing Docker cont
 
 ## 🆕 What's New in v2.3.0
 
-### 🗂️ Menu redesign — 2-column layout
-`dockman` now opens directly into a clean **2-column numbered menu** — no more neofetch-style dashboard on startup:
+### 🗂️ Clean 3-column menu
+`dockman` now opens directly into a **3-column numbered menu** — all categories visible at once, no scrolling:
 
 ```
   DOCKMAN v2.3.0  —  rlserver  —  suhu
 
-  CONTAINER                       MAINTENANCE
-  1. List semua container         14. Prune image
-  2. Update image (1 container)   15. Prune volumes
-  3. Update SEMUA image           16. Prune TOTAL
-  4. Restart container            17. Disk usage
-  5. Restart SEMUA
+  CONTAINER                 COMPOSE                   MAINTENANCE
+  1. List container         9.  Compose UP             14. Prune image
+  2. Update image           10. Compose DOWN            15. Prune volumes
+  3. Update SEMUA           11. Lihat compose           16. Prune TOTAL
+  4. Restart                12. Edit compose            17. Disk usage
+  5. Restart SEMUA          13. Backup compose
   6. Docker Stats
   7. Lihat logs
   8. Exec shell
 
-  COMPOSE                         EXTRAS
-  9.  Compose UP                  18. Lihat alias
-  10. Compose DOWN                19. Grep alias
-  11. Lihat compose.yml           20. Edit bashrc
-  12. Edit compose.yml            21. Lihat cron
-  13. Backup compose.yml          22. Edit cron
-                                  23. Rclone mega.nz
-                                  24. Server report
+  GNU SCREEN                EXTRAS                    SETTINGS
+  25. List session          18. Lihat alias            31. Lihat konfigurasi
+  26. Attach                19. Grep alias             32. Wizard ulang
+  27. Kill 1 session        20. Edit bashrc
+  28. Kill SEMUA            21. Lihat cron
+  29. Buat session          22. Edit cron
+  30. Cmd background        23. Rclone mega.nz
+                            24. Server report
 
-  GNU SCREEN                      SETTINGS
-  25. List screen session         31. Lihat konfigurasi
-  26. Attach ke session           32. Wizard setup ulang
-  27. Kill 1 session
-  28. Kill SEMUA session
-  29. Buat session baru
-  30. Jalankan cmd background
-
-  ──────────────────────────────────────────────────────────────
+  ────────────────────────────────────────────────────────────────────────────────
   0. Keluar
 ```
 
@@ -69,21 +61,21 @@ The old curses TUI is still available via `dockman --tui`.
 
 ### 🔥 UFW firewall detection fix (server report)
 UFW always showed as “not detected” when running as non-root. Now uses a 5-step fallback:
-1. `sudo -n ufw status verbose` (passwordless sudo)
-2. `ufw status verbose 2>&1` (capture stderr too)
+1. `sudo -n ufw status verbose`
+2. `ufw status verbose 2>&1`
 3. Read `/etc/ufw/ufw.conf` directly (no root needed)
 4. `systemctl is-active ufw`
-5. `iptables -L ufw-user-input` as last resort
+5. `iptables -L ufw-user-input`
 
 ### 📦 Installer now builds from source
-`install-dockman.sh` now does `git clone --depth=1` + `python3 build.py` — always gets the exact latest version from source, no pre-built binary required.
+`install-dockman.sh` now does `git clone --depth=1` + `python3 build.py` — always gets the latest version directly from source.
 
 ---
 
 ## 🤔 Why Dockman?
 
 - No need to remember long Docker commands
-- Clean interactive interface
+- Clean 3-column menu, all options visible at once
 - Faster daily workflow
 - Beginner-friendly but powerful
 
@@ -99,7 +91,7 @@ UFW always showed as “not detected” when running as non-root. Now uses a 5-s
 
 ## ✨ Features
 
-- **2-Column Menu** — clean numbered menu, no scrolling
+- **3-Column Menu** — all categories visible at once, no scrolling
 - **Container Management** — view logs, live logs, restart, stop/start, exec shell, pull image, remove
 - **Bulk Actions** — update all images, restart all, compose up/down/pull, prune volumes/images
 - **Docker Images** — list, pull update, delete
@@ -147,7 +139,7 @@ bash <(curl -fsSL https://raw.githubusercontent.com/bugsdroid/dockman/main/insta
 ## 🚀 Usage
 
 ```bash
-dockman              # 2-column numbered menu (default)
+dockman              # 3-column numbered menu (default)
 dockman --tui        # TUI curses interaktif (opsional)
 dockman --setup      # Initial setup wizard
 dockman --version    # Show version
@@ -173,9 +165,7 @@ dockman report <path>     # Generate to custom path
 
 ## ⌨️ Navigation
 
-In the menu, just type the number and press Enter.
-
-When Rich output appears (tables, logs, inspect), press `Enter` to return to menu.
+In the menu, type the number and press Enter. Press `Enter` after Rich output to return to menu.
 
 For `dockman --tui` curses mode:
 
@@ -230,8 +220,8 @@ The setup wizard runs automatically on first launch.
 
 | Version | Date | Notes |
 |---|---|---|
-| [v2.3.0](https://github.com/bugsdroid/dockman/releases/tag/v2.3.0) | 2026-05-10 | 2-column menu default, UFW fix, build-from-source installer |
-| [v2.2.0](https://github.com/bugsdroid/dockman/releases/tag/v2.2.0) | 2026-04-28 | Home Dashboard, animated banner, remote install |
+| [v2.3.0](https://github.com/bugsdroid/dockman/releases/tag/v2.3.0) | 2026-05-10 | 3-column menu, UFW fix, build-from-source installer |
+| [v2.2.0](https://github.com/bugsdroid/dockman/releases/tag/v2.2.0) | 2026-04-28 | Home Dashboard, animated banner |
 | v2.1.0 | 2026-04-20 | GNU Screen, rclone, server report, wizard |
 | v2.0.0 | 2026-04-10 | Hybrid UI (Curses + Rich), CLI commands |
 | v1.0.0 | 2026-03-01 | First release |
@@ -288,7 +278,7 @@ dockman/
 │   ├── ui/             # UI layer
 │   │   ├── curses_ui.py   # TUI interaktif (dockman --tui)
 │   │   ├── rich_ui.py     # Table & log output
-│   │   ├── cli_menu.py    # 2-column numbered menu (default)
+│   │   ├── cli_menu.py    # 3-column numbered menu (default)
 │   │   └── wizard.py      # Setup wizard
 │   ├── main.py
 │   └── build.py
@@ -297,8 +287,6 @@ dockman/
 ├── CHANGELOG.md
 └── TECHNICAL.md
 ```
-
-**Rule:** `core/` must not import from `ui/`. The build system compiles all files into a single `dockman.py`.
 
 ---
 
