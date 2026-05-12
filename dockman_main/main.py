@@ -80,7 +80,7 @@ def run_tui():
 
 
 def run_cli_menu():
-    """Jalankan menu numbered 2 kolom (default)."""
+    """Jalankan menu numbered 3 kolom (default)."""
     from ui.cli_menu import run_menu
     run_menu()
 
@@ -145,7 +145,7 @@ def print_help():
   {config.APP_NAME} v{config.VERSION} - Docker Manager
 
   USAGE:
-    dockman                    Menu numbered 2 kolom (default)
+    dockman                    Menu numbered 3 kolom (default)
     dockman --tui              TUI mode (Curses interaktif)
     dockman --setup            Setup wizard
     dockman --debug            TUI + detail error
@@ -212,6 +212,7 @@ def main():
         return
 
     if "--menu" in args or "-m" in args or "menu" in args:
+        dockman_banner()
         run_cli_menu()
         return
 
@@ -238,7 +239,8 @@ def main():
             print("  Tip: dockman --debug untuk detail\n")
             time.sleep(1)
 
-    # Default: numbered menu 2 kolom
+    # Default: numbered menu 3 kolom + banner
+    dockman_banner()
     run_cli_menu()
 
 

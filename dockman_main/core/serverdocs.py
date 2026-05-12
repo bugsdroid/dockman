@@ -87,7 +87,7 @@ class ServerDocsGenerator:
     def section_firewall(self):
         self._w(_section("FIREWALL (UFW)"))
 
-        # Strategy 1: sudo -n (passwordless sudo, non-interactive)
+        # Strategy 1: sudo -n (passwordless, non-interactive)
         out, err, code = run_cmd("sudo -n ufw status verbose 2>/dev/null", timeout=5)
         if code == 0 and out.strip() and ("active" in out.lower() or "inactive" in out.lower()):
             self._w(out)
@@ -99,7 +99,7 @@ class ServerDocsGenerator:
             self._w(out2)
             return
 
-        # Strategy 3: baca /etc/ufw/ufw.conf langsung (tidak butuh root)
+        # Strategy 3: baca /etc/ufw/ufw.conf langsung
         ufw_conf = ""
         try:
             with open("/etc/ufw/ufw.conf") as f:
@@ -110,18 +110,18 @@ class ServerDocsGenerator:
         if ufw_conf:
             enabled = "yes" if "ENABLED=yes" in ufw_conf.upper() else "no"
             self._w(f"UFW ENABLED (dari /etc/ufw/ufw.conf): {enabled.upper()}")
-            self._w(f"(Jalankan 'sudo ufw status verbose' untuk detail lengkap)")
+            self._w("(Jalankan 'sudo ufw status verbose' untuk detail lengkap)")
             self._w("")
             self._w(ufw_conf)
             return
 
-        # Strategy 4: cek via systemctl
+        # Strategy 4: cek via systemctl (non-interactive)
         out3, _, code3 = run_cmd("systemctl is-active ufw 2>/dev/null", timeout=5)
         if out3.strip():
             self._w(f"UFW service status (systemctl): {out3.strip()}")
             self._w("")
 
-        # Strategy 5: iptables sebagai fallback (non-interactive)
+        # Strategy 5: iptables (non-interactive)
         out4, _, code4 = run_cmd("sudo -n iptables -L ufw-user-input -n 2>/dev/null | head -5", timeout=5)
         if code4 == 0 and out4.strip():
             self._w("UFW iptables rules terdeteksi:")
@@ -146,7 +146,12 @@ class ServerDocsGenerator:
 
     def section_services(self):
         self._w(_section("SERVICES AKTIF"))
-        self._w(_run("systemctl list-units --type=service --state=running --no-legend | awk '{print $1, $3, $4}'"))
+        # --no-pager --plain mencegah trigger on-demand activation / polkit
+        self._w(_run(
+            "systemctl list-units --type=service --state=running "
+            "--no-legend --no-pager --plain 2>/dev/null "
+            "| awk '{print $1, $3, $4}'"
+        ))
 
     def section_docker(self):
         self._w(_section("DOCKER"))
@@ -222,7 +227,7 @@ class ServerDocsGenerator:
         from core.config import get_current_user
         cur_user = get_current_user()
         self._w(_section("CRON JOBS"))
-        self._w(f"--- Root ---")
+        self._w("--- Root ---")
         self._w(_run("crontab -l 2>/dev/null || echo 'Tidak ada cron job untuk root'"))
         self._w(f"\n--- User {cur_user} ---")
         self._w(_run(f"crontab -u {cur_user} -l 2>/dev/null || echo 'Tidak ada cron job untuk {cur_user}'"))
@@ -257,7 +262,7 @@ class ServerDocsGenerator:
             files = sorted([f for f in netplan_dir.iterdir()
                             if f.suffix in (".yaml", ".yml") and f.is_file()])
         except PermissionError:
-            # Tidak pakai sudo ls karena bisa trigger polkit interaktif
+            # Tidak pakai sudo - bisa trigger polkit interaktif
             self._w("Tidak bisa membaca /etc/netplan/ (Permission denied).")
             self._w("Jalankan: sudo dockman report  untuk detail netplan.")
             return
@@ -277,13 +282,13 @@ class ServerDocsGenerator:
                 content = Path(filepath).read_text(errors="replace")
             except PermissionError:
                 # Tidak pakai sudo cat - bisa trigger polkit interaktif
-                self._w(f"[Permission denied - jalankan: sudo dockman report]")
+                self._w("[Permission denied - jalankan: sudo dockman report]")
             except OSError as e:
                 self._w(f"[Error: {e}]")
             if content:
                 self._w(content)
             self._w("")
-        # Hanya coba netplan status tanpa sudo (sudo bisa trigger polkit interaktif)
+        # Hanya coba tanpa sudo - sudo bisa trigger polkit interaktif
         out, _, code = run_cmd("netplan status 2>/dev/null", timeout=5)
         if code == 0 and out and "command not found" not in out.lower():
             self._w("\n--- Netplan Status ---")
