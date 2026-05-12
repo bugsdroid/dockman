@@ -1,6 +1,5 @@
 """
 core/serverdocs.py - Server documentation generator
-Port dari server-docs.sh ke Python, dengan output path yang configurable.
 """
 
 import subprocess
@@ -88,7 +87,7 @@ class ServerDocsGenerator:
     def section_firewall(self):
         self._w(_section("FIREWALL (UFW)"))
 
-        # Strategy 1: sudo -n (passwordless sudo)
+        # Strategy 1: sudo -n (passwordless sudo, non-interactive)
         out, err, code = run_cmd("sudo -n ufw status verbose 2>/dev/null", timeout=5)
         if code == 0 and out.strip() and ("active" in out.lower() or "inactive" in out.lower()):
             self._w(out)
@@ -122,14 +121,13 @@ class ServerDocsGenerator:
             self._w(f"UFW service status (systemctl): {out3.strip()}")
             self._w("")
 
-        # Strategy 5: iptables sebagai fallback
+        # Strategy 5: iptables sebagai fallback (non-interactive)
         out4, _, code4 = run_cmd("sudo -n iptables -L ufw-user-input -n 2>/dev/null | head -5", timeout=5)
         if code4 == 0 and out4.strip():
             self._w("UFW iptables rules terdeteksi:")
             self._w(out4)
             return
 
-        # Tidak ada yang berhasil
         if not out3.strip():
             self._w("UFW tidak terinstall atau tidak terdeteksi.")
         else:
@@ -256,13 +254,13 @@ class ServerDocsGenerator:
             self._w("Sistem mungkin menggunakan NetworkManager atau ifupdown.")
             return
         try:
-            files = sorted([f for f in netplan_dir.iterdir() if f.suffix in (".yaml", ".yml") and f.is_file()])
+            files = sorted([f for f in netplan_dir.iterdir()
+                            if f.suffix in (".yaml", ".yml") and f.is_file()])
         except PermissionError:
-            out, err, code = run_cmd("sudo ls /etc/netplan/ 2>/dev/null")
-            if code != 0:
-                self._w("Tidak bisa membaca /etc/netplan/ (Permission denied).")
-                return
-            files = [netplan_dir / f.strip() for f in out.splitlines() if f.strip().endswith(('.yaml', '.yml'))]
+            # Tidak pakai sudo ls karena bisa trigger polkit interaktif
+            self._w("Tidak bisa membaca /etc/netplan/ (Permission denied).")
+            self._w("Jalankan: sudo dockman report  untuk detail netplan.")
+            return
         except OSError as e:
             self._w(f"Error membaca /etc/netplan/: {e}")
             return
@@ -278,22 +276,18 @@ class ServerDocsGenerator:
             try:
                 content = Path(filepath).read_text(errors="replace")
             except PermissionError:
-                out, err, code = run_cmd(f"sudo cat '{filepath}' 2>/dev/null")
-                if code == 0 and out:
-                    content = out
-                else:
-                    self._w(f"[Permission denied]")
+                # Tidak pakai sudo cat - bisa trigger polkit interaktif
+                self._w(f"[Permission denied - jalankan: sudo dockman report]")
             except OSError as e:
                 self._w(f"[Error: {e}]")
             if content:
                 self._w(content)
             self._w("")
-        for cmd_try in ["netplan status 2>/dev/null", "sudo netplan status 2>/dev/null"]:
-            out, _, code = run_cmd(cmd_try)
-            if code == 0 and out and "command not found" not in out.lower():
-                self._w("\n--- Netplan Status ---")
-                self._w(out)
-                break
+        # Hanya coba netplan status tanpa sudo (sudo bisa trigger polkit interaktif)
+        out, _, code = run_cmd("netplan status 2>/dev/null", timeout=5)
+        if code == 0 and out and "command not found" not in out.lower():
+            self._w("\n--- Netplan Status ---")
+            self._w(out)
 
     SECTIONS = [
         ("Header",              "section_header"),

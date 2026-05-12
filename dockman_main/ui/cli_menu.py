@@ -10,7 +10,7 @@ from core.config import get_compose_file, get_compose_dir, get_compose_cmd
 from core.config import get_editor, get, get_current_user, get_doc_output_dir
 from core.config import get_hostname, VERSION, APP_NAME, find_compose_files
 from core.config import set_value, CONFIG_FILE
-from core.config import load as config_load
+from core.config import load
 from core.utils import run_cmd, run_interactive, sanitize_input, check_tool
 from core.docker import get_containers, get_container_logs, get_container_image
 from core.docker import get_images, get_dangling_images, remove_image, get_orphan_volumes
@@ -363,7 +363,7 @@ def run_menu():
                 rich_ui.cli_error("Perintah kosong.")
 
         elif choice == "31":
-            cfg = config_load()
+            cfg = load()
             print(f"\n  Config: {CONFIG_FILE}\n")
             for section in cfg.sections():
                 print(f"  [{section}]")
