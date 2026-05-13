@@ -121,7 +121,7 @@ class ServerDocsGenerator:
             self._w(f"UFW service status (systemctl): {out3.strip()}")
             self._w("")
 
-        # Strategy 5: iptables (non-interactive)
+        # Strategy 5: iptables (non-interactive, sudo -n)
         out4, _, code4 = run_cmd("sudo -n iptables -L ufw-user-input -n 2>/dev/null | head -5", timeout=5)
         if code4 == 0 and out4.strip():
             self._w("UFW iptables rules terdeteksi:")
@@ -146,12 +146,25 @@ class ServerDocsGenerator:
 
     def section_services(self):
         self._w(_section("SERVICES AKTIF"))
-        # --no-pager --plain mencegah trigger on-demand activation / polkit
-        self._w(_run(
+        # DBUS_SESSION_BUS_ADDRESS='' disable D-Bus auto-activation yang bisa trigger polkit
+        out, err, code = run_cmd(
+            "DBUS_SESSION_BUS_ADDRESS='' "
             "systemctl list-units --type=service --state=running "
-            "--no-legend --no-pager --plain 2>/dev/null "
-            "| awk '{print $1, $3, $4}'"
-        ))
+            "--no-legend --no-pager --plain --no-ask-password 2>/dev/null "
+            "| awk '{print $1, $3, $4}'",
+            timeout=10
+        )
+        if code == 0 and out.strip():
+            self._w(out)
+        else:
+            # Fallback: ambil dari ps aux jika systemctl gagal
+            out2, _, _ = run_cmd(
+                "ps aux --no-headers 2>/dev/null "
+                "| awk '{print $11}' | sort -u "
+                "| grep -E '(daemon|service|server|worker)' | head -30",
+                timeout=10
+            )
+            self._w(out2 if out2.strip() else "(tidak dapat membaca services)")
 
     def section_docker(self):
         self._w(_section("DOCKER"))
