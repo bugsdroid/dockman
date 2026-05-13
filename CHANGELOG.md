@@ -8,37 +8,45 @@ Format: `[versi] - tanggal` → `Added / Changed / Fixed`
 ## [2.3.0] - 2026-05-10
 
 ### Changed
-- **Default mode**: `dockman` tanpa argumen sekarang langsung masuk ke **numbered menu 3 kolom** (bukan TUI curses)
+- **Default mode**: `dockman` tanpa argumen langsung masuk ke **numbered menu 3 kolom**
 - **Menu redesign**: Layout 3 kolom yang rapi
   - Baris atas : `CONTAINER` | `COMPOSE` | `MAINTENANCE`
   - Baris bawah: `GNU SCREEN` | `EXTRAS` | `SETTINGS`
   - Header: `DOCKMAN vX.X.X — hostname — username` (cyan bold)
-- **`dockman --tui`**: Flag baru untuk masuk ke TUI curses interaktif (sebelumnya default)
+- **`dockman --tui`**: Flag baru untuk masuk ke TUI curses interaktif
 - **`dockman --menu`**: Sama dengan default (backward compatible)
-- Source files sekarang lengkap di `dockman_main/`
+- **Banner `dockman>_`**: Muncul kembali saat startup (default + --menu mode)
 - Installer (`install-dockman.sh` v2.5): `git clone --depth=1` + `python3 build.py`
+- Source files lengkap di `dockman_main/`
 
 ### Fixed
-- **UFW detection** di server report: multi-fallback strategy
-  1. `sudo -n ufw status verbose` (passwordless sudo)
-  2. `ufw status verbose 2>&1` (capture stdout+stderr)
-  3. Baca `/etc/ufw/ufw.conf` langsung (tidak butuh root)
+- **`NameError: config_load`** di menu pilihan 31: import alias `load as config_load`
+  ter-strip oleh build system, diganti dengan `load()` langsung
+- **Polkit authentication popup** saat generate server report:
+  - `section_netplan`: hapus `sudo netplan status`, `sudo ls /etc/netplan/`,
+    `sudo cat` — semua bisa trigger polkit interaktif
+  - `section_services`: tambah `DBUS_SESSION_BUS_ADDRESS=''` dan
+    `--no-ask-password` untuk disable D-Bus auto-activation
+  - Fallback ke `ps aux` jika systemctl tetap gagal
+- **UFW detection** di server report: multi-fallback 5-step
+  1. `sudo -n ufw status verbose` (passwordless)
+  2. `ufw status verbose 2>&1`
+  3. Baca `/etc/ufw/ufw.conf` langsung
   4. `systemctl is-active ufw`
-  5. `sudo -n iptables -L ufw-user-input` sebagai last resort
+  5. `sudo -n iptables -L ufw-user-input`
 
 ---
 
 ## [2.2.0] - 2026-04-28
 
 ### Added
-- **Home Dashboard** (neofetch-style) sebagai landing page saat `dockman` dijalankan
+- **Home Dashboard** (neofetch-style) sebagai landing page
 - **Banner animasi** `dockman>_` saat startup
 - `dockman --setup` bisa dijalankan kapan saja
-- Auto-install Python, pip, Rich di installer
 
 ### Changed
-- Kembali ke Curses TUI (stable, tanpa Textual dependency)
-- Home screen sebagai landing page, bukan langsung container list
+- Kembali ke Curses TUI (stable)
+- Home screen sebagai landing page
 
 ### Fixed
 - Netplan section di server report: try `sudo cat` jika permission denied
@@ -48,11 +56,10 @@ Format: `[versi] - tanggal` → `Added / Changed / Fixed`
 ## [2.1.0] - 2026-04-20
 
 ### Added
-- GNU Screen manager (list, attach, buat session, kill)
-- Rclone copy dari cloud (Radarr/Sonarr/manual destination)
-- Server report generator (`dockman report`)
-- Netplan config section di server report
-- Setup wizard (`dockman --setup`)
+- GNU Screen manager
+- Rclone copy dari cloud
+- Server report generator
+- Setup wizard
 
 ### Changed
 - Installer universal (apt/dnf/yum/pacman/apk)
@@ -63,16 +70,11 @@ Format: `[versi] - tanggal` → `Added / Changed / Fixed`
 ## [2.0.0] - 2026-04-10
 
 ### Added
-- Hybrid UI: Curses untuk navigasi, Rich untuk output
-- Anti-flicker pattern (`erase` + `noutrefresh` + `doupdate`)
-- Keyboard shortcut `[X]` di semua menu
-- Docker stats, disk usage, inspect JSON
-- Compose view/edit/backup/validate
+- Hybrid UI: Curses + Rich
 - CLI commands: `ps`, `images`, `stats`, `df`, `logs`, `live`, `inspect`, `screens`, `report`
 
 ### Changed
-- Arsitektur dipisah: `core/` (business logic) dan `ui/` (tampilan)
-- `core/` zero UI dependency
+- Arsitektur dipisah: `core/` dan `ui/`
 
 ---
 
@@ -80,5 +82,3 @@ Format: `[versi] - tanggal` → `Added / Changed / Fixed`
 
 ### Added
 - Versi pertama: manajemen Docker container via terminal
-- List, start, stop, restart, logs container
-- Basic Rich output
