@@ -1,9 +1,12 @@
 #!/bin/bash
 # ============================================================
-#  DOCKMAN Universal Installer v2.5
+#  DOCKMAN Universal Installer v3.0
 #  Support: Ubuntu/Debian, RHEL/CentOS/Fedora, Arch, Alpine
 #
-#  Install/Update langsung dari GitHub:
+#  Install/Update dari branch v3:
+#    bash <(curl -fsSL https://raw.githubusercontent.com/bugsdroid/dockman/v3/install-dockman.sh)
+#
+#  Install dari main (stable v2.x):
 #    bash <(curl -fsSL https://raw.githubusercontent.com/bugsdroid/dockman/main/install-dockman.sh)
 #
 #  Atau jika sudah punya file ini:
@@ -11,12 +14,13 @@
 #    bash install-dockman.sh uninstall  -> hapus dockman
 #    bash install-dockman.sh check      -> cek dependencies
 #    bash install-dockman.sh build      -> build saja (lokal)
+#    bash install-dockman.sh bootstrap  -> install + langsung jalankan Bootstrap Wizard
 # ============================================================
 
 set -e
 
 REPO_URL="https://github.com/bugsdroid/dockman.git"
-REPO_RAW="https://raw.githubusercontent.com/bugsdroid/dockman/main"
+REPO_BRANCH="v3"   # default branch untuk installer ini
 INSTALL_PATH="/usr/local/bin/dockman"
 BUILD_TMP="/tmp/dockman-build-$$"
 
@@ -31,6 +35,10 @@ fi
 
 DIST_FILE="$SCRIPT_DIR/dockman_main/dist/dockman.py"
 
+# Flag bootstrap
+BOOTSTRAP_AFTER_INSTALL=0
+[[ "${1}" == "bootstrap" ]] && BOOTSTRAP_AFTER_INSTALL=1
+
 # ── Warna ──────────────────────────────────────────────────────────────────────
 if [[ -t 1 ]] && command -v tput &>/dev/null && tput colors &>/dev/null 2>&1; then
     C_GREEN="\033[0;32m"; C_YELLOW="\033[0;33m"
@@ -44,7 +52,7 @@ ok()   { echo -e "  ${C_GREEN}[OK]${C_RESET}  $*"; }
 warn() { echo -e "  ${C_YELLOW}[!!]${C_RESET}  $*"; }
 err()  { echo -e "  ${C_RED}[XX]${C_RESET}  $*"; }
 info() { echo -e "  ${C_CYAN}[..]${C_RESET}  $*"; }
-line() { echo "  $(printf '%0.s-' {1..50})"; }
+line() { echo "  $(printf '%0.s-' {1..54})"; }
 
 # ── Detect OS ──────────────────────────────────────────────────────────────────
 detect_os() {
@@ -148,7 +156,13 @@ install_docker() {
         ok "docker sudah terinstall"
         return 0
     fi
-    warn "Docker tidak ditemukan, menginstall..."
+    warn "Docker tidak ditemukan. Bootstrap Wizard bisa install Docker nanti."
+    info "Untuk install sekarang, pilih Y:"
+    read -rp "  Install Docker sekarang? (y/N): " inst_now
+    if [[ "${inst_now,,}" != "y" ]]; then
+        warn "Skip. Bootstrap Wizard (dockman --bootstrap) akan install Docker di Phase 4."
+        return 0
+    fi
     case "$OS_FAMILY" in
         debian)
             if curl -fsSL https://get.docker.com | sudo sh &>/dev/null; then
@@ -184,6 +198,9 @@ ensure_git() {
 
 setup_docker_group() {
     local user="${SUDO_USER:-$USER}"
+    if ! command -v docker &>/dev/null; then
+        return 0   # docker belum install, skip
+    fi
     if groups "$user" 2>/dev/null | grep -q docker; then
         ok "User '$user' sudah di grup docker"
     else
@@ -227,25 +244,12 @@ setup_rclone_mega() {
         return 0
     fi
 
-    if [[ -n "$existing_remotes" ]]; then
-        info "Remote rclone yang ada:"
-        echo "$existing_remotes" | while read -r r; do
-            info "  - $r"
-        done
-        echo ""
-        warn "Remote 'mega' belum ditemukan."
-    else
-        warn "Belum ada remote rclone yang dikonfigurasi."
-    fi
-
-    echo ""
-    echo -e "  ${C_YELLOW}Dockman menggunakan rclone untuk copy file dari Mega cloud.${C_RESET}"
+    warn "Remote 'mega' belum dikonfigurasi."
     echo ""
     read -rp "  Setup koneksi Mega sekarang? (y/N): " setup_now
 
     if [[ "${setup_now,,}" != "y" ]]; then
-        warn "Skip konfigurasi Mega."
-        warn "Untuk setup nanti, jalankan: rclone config"
+        warn "Skip. Setup nanti dengan: rclone config"
         return 0
     fi
 
@@ -260,23 +264,13 @@ setup_rclone_mega() {
     echo "  7. Pilih  'q' untuk quit setelah selesai"
     echo ""
     read -rp "  Tekan Enter untuk mulai rclone config..." _
-    echo ""
-
     rclone config
 
-    echo ""
-    local after_remotes
     after_remotes=$(rclone listremotes 2>/dev/null || echo "")
     if echo "$after_remotes" | grep -q "mega:"; then
         ok "Remote 'mega' berhasil dikonfigurasi!"
-        if rclone lsd mega: &>/dev/null; then
-            ok "Koneksi ke Mega berhasil!"
-        else
-            warn "Koneksi ke Mega gagal. Cek email/password atau jalankan: rclone config"
-        fi
     else
-        warn "Remote 'mega' tidak ditemukan setelah konfigurasi."
-        warn "Jalankan manual: rclone config"
+        warn "Remote 'mega' tidak ditemukan. Jalankan manual: rclone config"
     fi
 }
 
@@ -299,17 +293,23 @@ do_build_local() {
 
 # ── Clone repo + build dari GitHub ───────────────────────────────────────────
 do_build_remote() {
-    info "Mode remote: clone repo dan build dari source..."
+    info "Mode remote: clone branch ${REPO_BRANCH}..."
 
-    ensure_git || { err "git diperlukan untuk install. Install manual: sudo apt install git"; exit 1; }
+    ensure_git || { err "git diperlukan. Install: sudo apt install git"; exit 1; }
 
     rm -rf "$BUILD_TMP"
-    info "Cloning repository (shallow)..."
-    if git clone --depth=1 --quiet "$REPO_URL" "$BUILD_TMP" 2>/dev/null; then
+    info "Cloning repository (branch: ${REPO_BRANCH}, shallow)..."
+    if git clone --depth=1 --branch="$REPO_BRANCH" --quiet "$REPO_URL" "$BUILD_TMP" 2>/dev/null; then
         ok "Clone selesai"
     else
-        err "Clone gagal! Cek koneksi internet."
-        exit 1
+        # Fallback ke main jika branch tidak ada
+        warn "Branch ${REPO_BRANCH} tidak ditemukan, mencoba main..."
+        if git clone --depth=1 --quiet "$REPO_URL" "$BUILD_TMP" 2>/dev/null; then
+            ok "Clone dari main selesai"
+        else
+            err "Clone gagal! Cek koneksi internet."
+            exit 1
+        fi
     fi
 
     cd "$BUILD_TMP/dockman_main"
@@ -325,7 +325,6 @@ do_build_remote() {
     ok "Build selesai"
 }
 
-# ── Ambil binary ──────────────────────────────────────────────────────────────
 do_get_binary() {
     if [[ $LOCAL_MODE -eq 1 ]]; then
         do_build_local
@@ -334,11 +333,11 @@ do_get_binary() {
     fi
 }
 
-# Cleanup tmp dir saat exit
 cleanup() {
     [[ $LOCAL_MODE -eq 0 && -d "$BUILD_TMP" ]] && rm -rf "$BUILD_TMP"
 }
 trap cleanup EXIT
+
 
 # ══ UNINSTALL ══════════════════════════════════════════════════════════════════
 if [[ "${1}" == "uninstall" ]]; then
@@ -348,10 +347,23 @@ if [[ "${1}" == "uninstall" ]]; then
     if [[ -f "$INSTALL_PATH" ]]; then
         sudo rm -f "$INSTALL_PATH"
         ok "Dihapus dari $INSTALL_PATH"
+        # Hapus backup binary
         BACKUPS=$(ls ${INSTALL_PATH}.bak_* 2>/dev/null | wc -l)
         if [[ $BACKUPS -gt 0 ]]; then
-            read -rp "  Hapus $BACKUPS file backup? (y/N): " del_bak
-            [[ "${del_bak,,}" == "y" ]] && sudo rm -f ${INSTALL_PATH}.bak_* && ok "Backup dihapus"
+            read -rp "  Hapus $BACKUPS file backup binary? (y/N): " del_bak
+            [[ "${del_bak,,}" == "y" ]] && sudo rm -f ${INSTALL_PATH}.bak_* && ok "Backup binary dihapus"
+        fi
+        # Hapus bootstrap state
+        BOOTSTRAP_STATE="$HOME/.config/dockman/bootstrap_state.json"
+        if [[ -f "$BOOTSTRAP_STATE" ]]; then
+            read -rp "  Hapus bootstrap wizard state? (y/N): " del_state
+            [[ "${del_state,,}" == "y" ]] && rm -f "$BOOTSTRAP_STATE" && ok "Bootstrap state dihapus"
+        fi
+        # Hapus config
+        DOCKMAN_CONFIG="$HOME/.config/dockman/config.ini"
+        if [[ -f "$DOCKMAN_CONFIG" ]]; then
+            read -rp "  Hapus config dockman (~/.config/dockman/)? (y/N): " del_cfg
+            [[ "${del_cfg,,}" == "y" ]] && rm -rf "$HOME/.config/dockman/" && ok "Config dihapus"
         fi
     else
         warn "dockman tidak ditemukan di $INSTALL_PATH"
@@ -383,86 +395,93 @@ if [[ "${1}" == "check" ]]; then
     echo -e "  ${C_BOLD}  DOCKMAN - Cek Dependencies${C_RESET}"
     echo -e "  ${C_BOLD}========================================${C_RESET}"
     detect_os
-    info "OS Family  : $OS_FAMILY"
+    info "OS Family  : $OS_FAMILY ($ID_LOWER)"
     info "Pkg Manager: $PKG_MANAGER"
     line
     ensure_python
     ensure_pip
-    install_rich || true
-    install_docker || true
-    install_pkg "git"    "git"    "optional" || true
-    install_pkg "screen" "screen" "optional" || true
-    if command -v rclone &>/dev/null; then
-        ok "rclone terinstall"
-        remotes=$(rclone listremotes 2>/dev/null || echo "")
-        if echo "$remotes" | grep -q "mega:"; then
-            ok "rclone remote 'mega' terkonfigurasi"
-        else
-            warn "rclone remote 'mega' belum dikonfigurasi. Jalankan: rclone config"
-        fi
+    python3 -c "import rich" 2>/dev/null && ok "rich terinstall" || warn "rich belum terinstall"
+    command -v docker &>/dev/null && ok "docker $(docker --version 2>/dev/null | awk '{print $3}' | tr -d ',')"\
+        || warn "Docker belum terinstall (Bootstrap Wizard bisa install di Phase 4)"
+    command -v git &>/dev/null    && ok "git $(git --version | awk '{print $3}')" || warn "git belum terinstall"
+    command -v screen &>/dev/null && ok "screen terinstall"  || warn "screen belum terinstall"
+    command -v rclone &>/dev/null && ok "rclone terinstall" || warn "rclone belum terinstall"
+    command -v nano &>/dev/null   && ok "nano terinstall"   || warn "nano belum terinstall"
+    command -v netplan &>/dev/null && ok "netplan tersedia" || warn "netplan tidak ditemukan"
+    command -v tailscale &>/dev/null && ok "tailscale terinstall" || warn "tailscale belum terinstall"
+    echo ""
+    # Cek bootstrap state
+    if [[ -f "$HOME/.config/dockman/bootstrap_state.json" ]]; then
+        ok "Bootstrap state ditemukan: ~/.config/dockman/bootstrap_state.json"
     else
-        warn "rclone tidak ditemukan"
+        info "Belum ada bootstrap state. Jalankan: dockman --bootstrap"
     fi
-    install_pkg "nano" "nano" "optional" || true
     echo ""
     ok "Cek selesai."
     echo ""
     exit 0
 fi
 
+
 # ══ INSTALL / UPDATE ═══════════════════════════════════════════════════════════
 echo ""
 echo -e "  ${C_BOLD}========================================${C_RESET}"
 if [[ -f "$INSTALL_PATH" ]]; then
     OLD_VER=$("$INSTALL_PATH" --version 2>/dev/null | awk '{print $2}' || echo "?")
-    echo -e "  ${C_BOLD}  DOCKMAN - Update (versi saat ini: $OLD_VER)${C_RESET}"
+    echo -e "  ${C_BOLD}  DOCKMAN - Update (saat ini: v$OLD_VER)${C_RESET}"
 else
-    echo -e "  ${C_BOLD}  DOCKMAN - Install${C_RESET}"
+    echo -e "  ${C_BOLD}  DOCKMAN v3 - Install${C_RESET}"
 fi
 echo -e "  ${C_BOLD}========================================${C_RESET}"
 
 detect_os
-info "OS Family  : $OS_FAMILY"
+info "OS         : ${ID_LOWER} (${OS_FAMILY})"
+info "Branch     : ${REPO_BRANCH}"
 info "Mode       : $([ $LOCAL_MODE -eq 1 ] && echo 'lokal (build dari source)' || echo 'remote (clone + build dari GitHub)')"
 line
 
 echo ""
-echo -e "  ${C_BOLD}[1/8] Python3${C_RESET}"
+echo -e "  ${C_BOLD}[1/9] Python3${C_RESET}"
 ensure_python
 
 echo ""
-echo -e "  ${C_BOLD}[2/8] pip${C_RESET}"
+echo -e "  ${C_BOLD}[2/9] pip${C_RESET}"
 ensure_pip
 
 echo ""
-echo -e "  ${C_BOLD}[3/8] Rich (Python library)${C_RESET}"
+echo -e "  ${C_BOLD}[3/9] Rich (Python library)${C_RESET}"
 install_rich || true
 
 echo ""
-echo -e "  ${C_BOLD}[4/8] Git${C_RESET}"
+echo -e "  ${C_BOLD}[4/9] Git${C_RESET}"
 ensure_git || true
 
 echo ""
-echo -e "  ${C_BOLD}[5/8] Docker${C_RESET}"
-install_docker || warn "Docker perlu diinstall manual"
+echo -e "  ${C_BOLD}[5/9] Docker${C_RESET}"
+# Di v3, Docker bisa diinstall via Bootstrap Wizard Phase 4, jadi tidak mandatory di sini
+if command -v docker &>/dev/null; then
+    ok "Docker sudah terinstall: $(docker --version 2>/dev/null | awk '{print $3}' | tr -d ',')" 
+else
+    warn "Docker belum terinstall."
+    info "Bootstrap Wizard akan install Docker secara otomatis di Phase 4."
+    info "Atau install manual sekarang:"
+fi
 
 echo ""
-echo -e "  ${C_BOLD}[6/8] GNU Screen${C_RESET}"
+echo -e "  ${C_BOLD}[6/9] GNU Screen${C_RESET}"
 install_pkg "screen" "screen" "optional" || true
 
 echo ""
-echo -e "  ${C_BOLD}[7/8] rclone + Mega${C_RESET}"
+echo -e "  ${C_BOLD}[7/9] rclone + Mega${C_RESET}"
 install_rclone || true
 setup_rclone_mega || true
 
 echo ""
-echo -e "  ${C_BOLD}[8/8] nano (editor)${C_RESET}"
+echo -e "  ${C_BOLD}[8/9] nano (editor)${C_RESET}"
 install_pkg "nano" "nano" "optional" || true
 
-line
-
 echo ""
-echo -e "  ${C_BOLD}Menyiapkan dockman.py...${C_RESET}"
+echo -e "  ${C_BOLD}[9/9] Build & Install dockman${C_RESET}"
 do_get_binary
 
 echo ""
@@ -477,7 +496,6 @@ fi
 sudo cp "$DIST_FILE" "$INSTALL_PATH"
 sudo chmod +x "$INSTALL_PATH"
 
-# Bersihkan tmp jika mode remote
 [[ $LOCAL_MODE -eq 0 && -d "$BUILD_TMP" ]] && rm -rf "$BUILD_TMP"
 
 NEW_VER=$("$INSTALL_PATH" --version 2>/dev/null | awk '{print $2}' || echo "?")
@@ -486,25 +504,40 @@ ok "Installed: $INSTALL_PATH (v${NEW_VER})"
 echo ""
 setup_docker_group
 
+# ── Post-install summary ──────────────────────────────────────────────────────
 echo ""
 echo -e "  ${C_BOLD}========================================${C_RESET}"
 echo -e "  ${C_BOLD}  DOCKMAN v${NEW_VER} siap dipakai!${C_RESET}"
 echo -e "  ${C_BOLD}========================================${C_RESET}"
 echo ""
 echo "  USAGE:"
-echo "    dockman              -> TUI mode"
-echo "    dockman --menu       -> Menu numbered"
-echo "    dockman --setup      -> Setup wizard"
-echo "    dockman ps           -> List container"
-echo "    dockman logs <name>  -> Lihat logs"
-echo "    dockman report       -> Generate server report"
-echo "    dockman --help       -> Semua command"
+echo "    dockman                  -> Menu utama"
+echo "    dockman --bootstrap      -> Bootstrap Wizard (setup server dari nol)"
+echo "    dockman --bootstrap 3    -> Jalankan ulang phase 3 (Storage)"
+echo "    dockman --tui            -> TUI curses interaktif"
+echo "    dockman --setup          -> Setup wizard config dockman"
+echo "    dockman ps               -> List container"
+echo "    dockman logs <name>      -> Lihat logs container"
+echo "    dockman report           -> Generate server report"
+echo "    dockman --help           -> Semua command"
 echo ""
-echo "  UPDATE ke versi terbaru:"
-echo "    bash <(curl -fsSL https://raw.githubusercontent.com/bugsdroid/dockman/main/install-dockman.sh)"
+echo "  BOOTSTRAP WIZARD (7 phases):"
+echo "    Phase 1: Persiapan Sistem  (hostname, timezone, update)"
+echo "    Phase 2: Konfigurasi Jaringan (static IP, UFW, mDNS)"
+echo "    Phase 3: Manajemen Storage (disk, format, mount)"
+echo "    Phase 4: Setup Docker"
+echo "    Phase 5: Pilih Stack (Jellyfin, Radarr, dll)"
+echo "    Phase 6: Remote Access (Tailscale, Cloudflare Tunnel)"
+echo "    Phase 7: Deploy & Verifikasi"
+echo ""
+echo "  UPDATE ke versi terbaru (branch v3):"
+echo "    bash <(curl -fsSL https://raw.githubusercontent.com/bugsdroid/dockman/v3/install-dockman.sh)"
 echo ""
 echo "  UNINSTALL:"
-echo "    bash <(curl -fsSL https://raw.githubusercontent.com/bugsdroid/dockman/main/install-dockman.sh) uninstall"
+echo "    bash <(curl -fsSL https://raw.githubusercontent.com/bugsdroid/dockman/v3/install-dockman.sh) uninstall"
+echo ""
+echo "  CEK DEPENDENCIES:"
+echo "    bash <(curl -fsSL https://raw.githubusercontent.com/bugsdroid/dockman/v3/install-dockman.sh) check"
 echo ""
 
 if [[ -n "$NEED_RELOGIN" ]]; then
@@ -515,3 +548,27 @@ fi
 
 line
 echo ""
+
+# ── Auto-launch Bootstrap Wizard jika diminta ─────────────────────────────────
+if [[ $BOOTSTRAP_AFTER_INSTALL -eq 1 ]]; then
+    echo -e "  ${C_CYAN}Meluncurkan Bootstrap Wizard...${C_RESET}"
+    echo ""
+    sleep 1
+    exec dockman --bootstrap
+elif [[ ! -f "$HOME/.config/dockman/bootstrap_state.json" ]]; then
+    # First-time install: tawarkan bootstrap wizard
+    echo -e "  ${C_BOLD}Setup server dari nol?${C_RESET}"
+    echo "  Bootstrap Wizard akan memandu kamu setup lengkap:"
+    echo "  static IP, Docker, Jellyfin, qBittorrent, Radarr, dll."
+    echo ""
+    read -rp "  Jalankan Bootstrap Wizard sekarang? (y/N): " run_bootstrap
+    if [[ "${run_bootstrap,,}" == "y" ]]; then
+        echo ""
+        exec dockman --bootstrap
+    else
+        echo ""
+        info "Jalankan nanti dengan: dockman --bootstrap"
+        info "Atau langsung pakai: dockman"
+        echo ""
+    fi
+fi
