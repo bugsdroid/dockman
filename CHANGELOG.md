@@ -5,6 +5,59 @@ Format: `[versi] - tanggal` → `Added / Changed / Fixed`
 
 ---
 
+## [3.0.0] - WIP (branch: v3)
+
+### Added
+
+- **Bootstrap Wizard** (7 phases) — setup server dari nol tanpa perlu tau Linux command
+  - Phase 1: Persiapan Sistem — update packages, hostname, timezone, locale, SSH hardening
+  - Phase 2: Konfigurasi Jaringan — static IP via netplan (dengan rollback otomatis), UFW, mDNS, DoH
+  - Phase 3: Manajemen Storage — deteksi disk, format, mount via UUID, fstab, folder structure
+  - Phase 4: Setup Docker — install Docker, daemon config (log rotation), docker group, network mode
+  - Phase 5: Pilih Stack Aplikasi — media server, downloader, arr suite, indexer, reverse proxy, monitoring
+  - Phase 6: Remote Access — Tailscale dan/atau Cloudflare Tunnel
+  - Phase 7: Deploy & Verifikasi — generate compose, docker compose up, health check, summary URL
+- **Resume-able wizard** — progress disimpan ke `~/.config/dockman/bootstrap_state.json`, bisa dilanjutkan
+- **Per-phase re-run** — bisa jalankan ulang phase tertentu tanpa harus dari awal
+- **Compose generator** — auto-generate `docker-compose.yml` berdasarkan pilihan stack
+- **Port conflict detection** — deteksi konflik port antar service sebelum deploy
+- **Safety net berlapis** untuk operasi destructive (format disk):
+  - Layer 1: Informasi dan preview dalam bahasa manusia
+  - Layer 2: Warning eksplisit
+  - Layer 3: Konfirmasi ketik ukuran disk (mirip GitHub delete repo)
+  - Layer 4: Auto-backup partition table sebelum eksekusi
+  - Layer 5: Info rollback jika gagal
+- **Netplan rollback otomatis** — jika apply static IP gagal, config lama dipulihkan
+- **SSH autostart toggle** — dockman otomatis terbuka saat SSH login
+- **`dockman --bootstrap`** — CLI flag untuk langsung masuk wizard
+- **`dockman --bootstrap <n>`** — langsung ke phase N (1-7)
+- Menu entry **33** (Bootstrap Wizard) dan **34** (jalankan ulang phase) di numbered menu
+- **`core/bootstrap.py`** — modul baru: state management, phase definitions, compose generator, helpers
+- **`ui/bootstrap_wizard.py`** — modul baru: interactive wizard UI untuk 7 phases
+
+### Stack yang didukung
+
+| Kategori | Pilihan |
+|---|---|
+| Media Server | Jellyfin, Plex, Emby |
+| Downloader | qBittorrent, Deluge, SABnzbd |
+| Arr Suite | Radarr, Sonarr, Lidarr, Bazarr |
+| Indexer | Prowlarr, Jackett |
+| Request Manager | Jellyseerr, Overseerr |
+| Reverse Proxy | Nginx Proxy Manager, Caddy |
+| Dashboard | Homarr, Heimdall |
+| Monitoring | Portainer, Watchtower |
+| DNS/Adblock | AdGuard Home, Pi-hole |
+| Remote Access | Tailscale, Cloudflare Tunnel |
+
+### Changed
+- Version bump: 2.3.0 → 3.0.0
+- `build.py` diupdate: include `core/bootstrap.py` dan `ui/bootstrap_wizard.py`
+- `main.py` diupdate: routing `--bootstrap` flag
+- `cli_menu.py` diupdate: tambah section BOOTSTRAP di menu
+
+---
+
 ## [2.3.0] - 2026-05-10
 
 ### Changed
@@ -20,20 +73,9 @@ Format: `[versi] - tanggal` → `Added / Changed / Fixed`
 - Source files lengkap di `dockman_main/`
 
 ### Fixed
-- **`NameError: config_load`** di menu pilihan 31: import alias `load as config_load`
-  ter-strip oleh build system, diganti dengan `load()` langsung
-- **Polkit authentication popup** saat generate server report:
-  - `section_netplan`: hapus `sudo netplan status`, `sudo ls /etc/netplan/`,
-    `sudo cat` — semua bisa trigger polkit interaktif
-  - `section_services`: tambah `DBUS_SESSION_BUS_ADDRESS=''` dan
-    `--no-ask-password` untuk disable D-Bus auto-activation
-  - Fallback ke `ps aux` jika systemctl tetap gagal
+- **`NameError: config_load`** di menu pilihan 31
+- **Polkit authentication popup** saat generate server report
 - **UFW detection** di server report: multi-fallback 5-step
-  1. `sudo -n ufw status verbose` (passwordless)
-  2. `ufw status verbose 2>&1`
-  3. Baca `/etc/ufw/ufw.conf` langsung
-  4. `systemctl is-active ufw`
-  5. `sudo -n iptables -L ufw-user-input`
 
 ---
 
