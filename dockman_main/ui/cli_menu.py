@@ -67,17 +67,16 @@ def run_menu():
 
         os.system("clear")
 
-        # ── Header ──────────────────────────────────────────────────────────
+        # ── Header ───────────────────────────────────────────────────────────────────────
         print()
         print(f"  \033[1;36mDOCKMAN v{VERSION}  \u2014  {hostname}  \u2014  {cur_user}\033[0m")
         print()
 
-        # ── 3-column menu layout ─────────────────────────────────────────────
-        COL_W = 26  # lebar tiap kolom
-        GAP   = 2   # spasi antar kolom
+        # ── 3-column menu layout ─────────────────────────────────────────────────────
+        COL_W = 26
+        GAP   = 2
 
         def row3(c1="", c2="", c3="", hdr=False):
-            """Cetak satu baris 3 kolom."""
             CYAN  = "\033[1;36m"
             RESET = "\033[0m"
             if hdr:
@@ -92,13 +91,12 @@ def run_menu():
             print(f"  {l1}{' '*p1}{' '*GAP}{l2}{' '*p2}{' '*GAP}{l3}")
 
         def mi(n1, t1, n2="", t2="", n3="", t3=""):
-            """Menu item 3 kolom."""
             c1 = f"{n1}. {t1}" if n1 else ""
             c2 = f"{n2}. {t2}" if n2 else ""
             c3 = f"{n3}. {t3}" if n3 else ""
             row3(c1, c2, c3)
 
-        # ── Baris atas: CONTAINER | COMPOSE | MAINTENANCE ────────────────────
+        # ── Baris atas: CONTAINER | COMPOSE | MAINTENANCE ───────────────────────────
         row3("CONTAINER",     "COMPOSE",          "MAINTENANCE",  hdr=True)
         mi("1",  "List container",    "9",  "Compose UP",    "14", "Prune image")
         mi("2",  "Update image",      "10", "Compose DOWN",  "15", "Prune volumes")
@@ -110,7 +108,7 @@ def run_menu():
         mi("8",  "Exec shell")
         print()
 
-        # ── Baris bawah: GNU SCREEN | EXTRAS | SETTINGS ───────────────────
+        # ── Baris bawah: GNU SCREEN | EXTRAS | SETTINGS ─────────────────────────
         row3("GNU SCREEN",    "EXTRAS",            "SETTINGS",     hdr=True)
         mi("25", "List session",      "18", "Lihat alias",   "31", "Lihat konfigurasi")
         mi("26", "Attach",            "19", "Grep alias",    "32", "Wizard ulang")
@@ -121,7 +119,13 @@ def run_menu():
         mi("",   "",                  "24", "Server report")
         print()
 
-        print(f"  \033[2m{'-' * 80}\033[0m")
+        # ── Bootstrap Wizard ──────────────────────────────────────────────────────
+        print(f"  \033[1;36mBOOTSTRAP\033[0m")
+        mi("33", "Bootstrap Wizard (setup server dari nol)")
+        mi("34", "Jalankan ulang phase tertentu (1-7)")
+        print()
+
+        print(f"  \033[2m{'\u2500' * 80}\033[0m")
         print(f"  \033[1;31m0. Keluar\033[0m")
         print()
         choice = input("  Pilih: ").strip()
@@ -374,6 +378,32 @@ def run_menu():
         elif choice == "32":
             from ui.wizard import run_wizard
             run_wizard()
+
+        # ── Bootstrap Wizard ────────────────────────────────────────────────────────────
+        elif choice == "33":
+            from ui.bootstrap_wizard import run_bootstrap_wizard
+            run_bootstrap_wizard()
+
+        elif choice == "34":
+            from core.bootstrap import PHASES
+            from ui.bootstrap_wizard import run_bootstrap_wizard
+            print()
+            print(f"  Pilih phase yang ingin dijalankan ulang:")
+            print()
+            for p in PHASES:
+                print(f"  {p['number']}. {p['title']}")
+            print()
+            raw = input("  Nomor phase (0=batal): ").strip()
+            if raw.isdigit() and int(raw) > 0:
+                phase_id = None
+                for p in PHASES:
+                    if p["number"] == int(raw):
+                        phase_id = p["id"]
+                        break
+                if phase_id:
+                    run_bootstrap_wizard(phase_id=phase_id)
+                else:
+                    rich_ui.cli_error(f"Phase {raw} tidak ditemukan.")
 
         else:
             rich_ui.cli_error(f"Pilihan tidak valid: {choice}")
