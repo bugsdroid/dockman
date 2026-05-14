@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-main.py - Entry point Dockman v2.3.0
+main.py - Entry point Dockman v3.0.0
 """
 
 import sys
@@ -85,6 +85,12 @@ def run_cli_menu():
     run_menu()
 
 
+def run_bootstrap(phase_id: str = None):
+    """Jalankan Bootstrap Wizard."""
+    from ui.bootstrap_wizard import run_bootstrap_wizard
+    run_bootstrap_wizard(phase_id=phase_id)
+
+
 def run_cli_command(args):
     """CLI command langsung dengan Rich output."""
     import core.docker as docker
@@ -142,12 +148,14 @@ def run_cli_command(args):
 
 def print_help():
     print(f"""
-  {config.APP_NAME} v{config.VERSION} - Docker Manager
+  {config.APP_NAME} v{config.VERSION} - Docker & Media Server Manager
 
   USAGE:
     dockman                    Menu numbered 3 kolom (default)
     dockman --tui              TUI mode (Curses interaktif)
-    dockman --setup            Setup wizard
+    dockman --bootstrap        Bootstrap Wizard (setup server dari nol)
+    dockman --bootstrap <n>    Jalankan ulang phase N (1-7)
+    dockman --setup            Setup wizard dockman (config dasar)
     dockman --debug            TUI + detail error
     dockman --version          Tampilkan versi
     dockman --help             Tampilkan bantuan ini
@@ -164,6 +172,15 @@ def print_help():
     dockman screens            List GNU screen sessions
     dockman report             Generate server report
     dockman report <path>      Generate ke path custom
+
+  BOOTSTRAP WIZARD:
+    Phase 1 - Persiapan Sistem   (hostname, timezone, update, SSH)
+    Phase 2 - Konfigurasi Jaringan (static IP, UFW, mDNS, DoH)
+    Phase 3 - Manajemen Storage  (disk, format, mount, folder)
+    Phase 4 - Setup Docker       (install, daemon config, network)
+    Phase 5 - Pilih Stack        (Jellyfin, qBittorrent, Radarr, dll)
+    Phase 6 - Remote Access      (Tailscale, Cloudflare Tunnel)
+    Phase 7 - Deploy & Verifikasi
 
   CONFIG: {config.CONFIG_FILE}
 """)
@@ -187,7 +204,28 @@ def main():
         run_wizard()
         sys.exit(0)
 
-    skip_docker = args and args[0] == "report"
+    # Bootstrap wizard
+    if "--bootstrap" in args:
+        idx = args.index("--bootstrap")
+        # Cek apakah ada phase number setelah flag
+        phase_id = None
+        if len(args) > idx + 1:
+            phase_arg = args[idx + 1]
+            if phase_arg.isdigit():
+                phase_num = int(phase_arg)
+                from core.bootstrap import PHASES
+                for p in PHASES:
+                    if p["number"] == phase_num:
+                        phase_id = p["id"]
+                        break
+                if not phase_id:
+                    print(f"  Phase {phase_num} tidak ditemukan. Range: 1-7")
+                    sys.exit(1)
+        run_bootstrap(phase_id=phase_id)
+        sys.exit(0)
+
+    # Skip docker check untuk report dan bootstrap
+    skip_docker = args and args[0] in ("report",)
     if not skip_docker:
         try:
             check_docker()

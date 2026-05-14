@@ -13,9 +13,11 @@ SOURCE_FILES = [
     "core/config.py",
     "core/utils.py",
     "core/docker.py",
+    "core/bootstrap.py",
     "core/serverdocs.py",
     "ui/rich_ui.py",
     "ui/wizard.py",
+    "ui/bootstrap_wizard.py",
     "ui/curses_ui.py",
     "ui/cli_menu.py",
     "main.py",
@@ -28,10 +30,13 @@ INTERNAL_IMPORTS = {
     "from core.utils import",
     "from core.docker import",
     "from core.serverdocs import",
+    "from core.bootstrap import",
+    "import core.bootstrap",
     "import ui.rich_ui as rich_ui",
     "from ui.wizard import",
     "from ui.curses_ui import",
     "from ui.cli_menu import",
+    "from ui.bootstrap_wizard import",
     "import core.config",
     "import core.utils",
     "import core.docker",
@@ -95,9 +100,11 @@ rich_ui = _types.SimpleNamespace(
 INLINE_INTERNAL = [
     "from ui.wizard import", "from ui.curses_ui import",
     "from ui.cli_menu import", "from ui.rich_ui import",
+    "from ui.bootstrap_wizard import",
     "import core.docker as", "import core.config as",
     "from core.config import", "from core.utils import",
     "from core.docker import", "from core.serverdocs import",
+    "from core.bootstrap import", "import core.bootstrap",
 ]
 
 
@@ -161,7 +168,7 @@ def build():
 
     config_content = (src_dir / "core/config.py").read_text()
     m = re.search(r'VERSION\s*=\s*["\']([^"\']+)["\']', config_content)
-    version = m.group(1) if m else "2.3.0"
+    version = m.group(1) if m else "3.0.0"
 
     print(f"Building dockman v{version}...")
 
