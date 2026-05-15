@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """
 build.py - Compile semua source file menjadi satu dockman.py
+
+v3: curses_ui.py DIHAPUS dari build pipeline.
+TUI mode tidak tersedia di v3.
 """
 
 import os
@@ -18,9 +21,9 @@ SOURCE_FILES = [
     "ui/rich_ui.py",
     "ui/wizard.py",
     "ui/bootstrap_wizard.py",
-    "ui/curses_ui.py",
     "ui/cli_menu.py",
     "main.py",
+    # ui/curses_ui.py DIHAPUS di v3 - TUI mode tidak tersedia
 ]
 
 INTERNAL_IMPORTS = {
@@ -44,7 +47,7 @@ INTERNAL_IMPORTS = {
 
 HEADER = '''#!/usr/bin/env python3
 """
-dockman - Docker Manager TUI (compiled single-file)
+dockman - Docker Manager (compiled single-file)
 Version : {version}
 Built   : {date}
 License : MIT
@@ -170,7 +173,7 @@ def build():
     m = re.search(r'VERSION\s*=\s*["\']([^"\']+)["\']', config_content)
     version = m.group(1) if m else "3.0.0"
 
-    print(f"Building dockman v{version}...")
+    print(f"Building dockman v{version} (no TUI)...")
 
     all_imports_seen = set()
     all_imports_list = []
@@ -198,6 +201,10 @@ def build():
 
     stdlib_core  = [i for i in all_imports_list if "rich" not in i]
     rich_imports = [i for i in all_imports_list if "rich" in i]
+
+    # Hapus curses dari imports karena tidak dipakai lagi
+    stdlib_core = [i for i in stdlib_core if "curses" not in i]
+
     import_block = "\n".join(stdlib_core)
     if rich_imports:
         import_block += "\n\n# Rich imports (dengan graceful fallback di rich_ui)\n"
@@ -234,6 +241,7 @@ def build():
     lines = final_content.count("\n")
     print(f"\nOutput: {out_path}")
     print(f"Size  : {size:,} bytes ({lines:,} baris)")
+    print(f"Note  : curses/TUI tidak disertakan (v3)")
     return str(out_path)
 
 
