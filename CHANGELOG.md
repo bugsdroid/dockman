@@ -1,7 +1,7 @@
 # CHANGELOG
 
 Semua perubahan penting pada Dockman dicatat di sini.
-Format: `[versi] - tanggal` → `Added / Changed / Fixed`
+Format: `[versi] - tanggal` → `Added / Changed / Fixed / Removed`
 
 ---
 
@@ -11,31 +11,42 @@ Format: `[versi] - tanggal` → `Added / Changed / Fixed`
 
 - **Bootstrap Wizard** (7 phases) — setup server dari nol tanpa perlu tau Linux command
   - Phase 1: Persiapan Sistem — update packages, hostname, timezone, locale, SSH hardening
-  - Phase 2: Konfigurasi Jaringan — static IP via netplan (dengan rollback otomatis), UFW, mDNS, DoH
+  - Phase 2: Konfigurasi Jaringan — static IP via netplan (rollback otomatis), UFW, mDNS, DoH
   - Phase 3: Manajemen Storage — deteksi disk, format, mount via UUID, fstab, folder structure
   - Phase 4: Setup Docker — install Docker, daemon config (log rotation), docker group, network mode
-  - Phase 5: Pilih Stack Aplikasi — media server, downloader, arr suite, indexer, reverse proxy, monitoring
+  - Phase 5: Pilih Stack — media server, downloader, arr suite, indexer, reverse proxy, monitoring
   - Phase 6: Remote Access — Tailscale dan/atau Cloudflare Tunnel
-  - Phase 7: Deploy & Verifikasi — generate compose, docker compose up, health check, summary URL
-- **Resume-able wizard** — progress disimpan ke `~/.config/dockman/bootstrap_state.json`, bisa dilanjutkan
-- **Per-phase re-run** — bisa jalankan ulang phase tertentu tanpa harus dari awal
+  - Phase 7: Deploy & Verifikasi — generate compose, `docker compose up`, health check, summary URL
+- **Resume-able wizard** — progress disimpan ke `~/.config/dockman/bootstrap_state.json`
+- **Per-phase rerun** — `dockman --bootstrap 3` langsung ke Phase 3
 - **Compose generator** — auto-generate `docker-compose.yml` berdasarkan pilihan stack
 - **Port conflict detection** — deteksi konflik port antar service sebelum deploy
-- **Safety net berlapis** untuk operasi destructive (format disk):
-  - Layer 1: Informasi dan preview dalam bahasa manusia
-  - Layer 2: Warning eksplisit
-  - Layer 3: Konfirmasi ketik ukuran disk (mirip GitHub delete repo)
-  - Layer 4: Auto-backup partition table sebelum eksekusi
-  - Layer 5: Info rollback jika gagal
-- **Netplan rollback otomatis** — jika apply static IP gagal, config lama dipulihkan
-- **SSH autostart toggle** — dockman otomatis terbuka saat SSH login
-- **`dockman --bootstrap`** — CLI flag untuk langsung masuk wizard
-- **`dockman --bootstrap <n>`** — langsung ke phase N (1-7)
+- **Safety net 5 lapis** untuk operasi destructive (format disk)
+- **Netplan rollback otomatis** — jika static IP gagal, config lama dipulihkan
+- **SSH autostart toggle** — dockman otomatis buka saat SSH login
+- **`dockman --bootstrap`** dan **`dockman --bootstrap <n>`** — CLI flags
 - Menu entry **33** (Bootstrap Wizard) dan **34** (jalankan ulang phase) di numbered menu
-- **`core/bootstrap.py`** — modul baru: state management, phase definitions, compose generator, helpers
-- **`ui/bootstrap_wizard.py`** — modul baru: interactive wizard UI untuk 7 phases
+- **`core/bootstrap.py`** — state management, phase definitions, compose generator, helpers
+- **`ui/bootstrap_wizard.py`** — interactive wizard UI untuk 7 phases
+- **`test-bootstrap.sh`** — test suite: build + unit + smoke + integration (50+ test cases)
+- **`install-dockman.sh` v3.0** — bootstrap support, uninstall cleanup state
+- **`README.v3.md`** — dokumentasi khusus branch v3
 
-### Stack yang didukung
+### Changed
+- Version bump: 2.3.0 → 3.0.0
+- `build.py` diupdate: include bootstrap modules, exclude curses
+- `main.py` diupdate: routing `--bootstrap`, hapus TUI routing
+- `cli_menu.py` diupdate: tambah section BOOTSTRAP (menu 33 & 34)
+
+### Removed
+- **TUI mode (curses)** — `dockman --tui` dan `ui/curses_ui.py` dihapus dari v3
+  - Alasan: menu numbered 3 kolom lebih user-friendly, Bootstrap Wizard menggantikan home dashboard, curses bermasalah di beberapa terminal/SSH environment
+  - `dockman --tui` sekarang menampilkan pesan info dan exit
+  - Untuk referensi TUI, lihat branch `main` (v2.3.0)
+- `import curses` dihapus dari build output
+- `import traceback` dan `import time` (dari TUI fallback) dihapus dari main.py
+
+### Stack yang didukung (Bootstrap Wizard Phase 5)
 
 | Kategori | Pilihan |
 |---|---|
@@ -50,27 +61,17 @@ Format: `[versi] - tanggal` → `Added / Changed / Fixed`
 | DNS/Adblock | AdGuard Home, Pi-hole |
 | Remote Access | Tailscale, Cloudflare Tunnel |
 
-### Changed
-- Version bump: 2.3.0 → 3.0.0
-- `build.py` diupdate: include `core/bootstrap.py` dan `ui/bootstrap_wizard.py`
-- `main.py` diupdate: routing `--bootstrap` flag
-- `cli_menu.py` diupdate: tambah section BOOTSTRAP di menu
-
 ---
 
 ## [2.3.0] - 2026-05-10
 
 ### Changed
 - **Default mode**: `dockman` tanpa argumen langsung masuk ke **numbered menu 3 kolom**
-- **Menu redesign**: Layout 3 kolom yang rapi
-  - Baris atas : `CONTAINER` | `COMPOSE` | `MAINTENANCE`
-  - Baris bawah: `GNU SCREEN` | `EXTRAS` | `SETTINGS`
-  - Header: `DOCKMAN vX.X.X — hostname — username` (cyan bold)
-- **`dockman --tui`**: Flag baru untuk masuk ke TUI curses interaktif
+- **Menu redesign**: Layout 3 kolom yang rapi (CONTAINER | COMPOSE | MAINTENANCE, GNU SCREEN | EXTRAS | SETTINGS)
+- **`dockman --tui`**: Flag untuk masuk ke TUI curses interaktif
 - **`dockman --menu`**: Sama dengan default (backward compatible)
-- **Banner `dockman>_`**: Muncul kembali saat startup (default + --menu mode)
-- Installer (`install-dockman.sh` v2.5): `git clone --depth=1` + `python3 build.py`
-- Source files lengkap di `dockman_main/`
+- **Banner `dockman>_`**: Muncul kembali saat startup
+- Installer v2.5: `git clone --depth=1` + `python3 build.py`
 
 ### Fixed
 - **`NameError: config_load`** di menu pilihan 31
@@ -84,11 +85,6 @@ Format: `[versi] - tanggal` → `Added / Changed / Fixed`
 ### Added
 - **Home Dashboard** (neofetch-style) sebagai landing page
 - **Banner animasi** `dockman>_` saat startup
-- `dockman --setup` bisa dijalankan kapan saja
-
-### Changed
-- Kembali ke Curses TUI (stable)
-- Home screen sebagai landing page
 
 ### Fixed
 - Netplan section di server report: try `sudo cat` jika permission denied
@@ -98,10 +94,7 @@ Format: `[versi] - tanggal` → `Added / Changed / Fixed`
 ## [2.1.0] - 2026-04-20
 
 ### Added
-- GNU Screen manager
-- Rclone copy dari cloud
-- Server report generator
-- Setup wizard
+- GNU Screen manager, Rclone copy dari cloud, Server report generator, Setup wizard
 
 ### Changed
 - Installer universal (apt/dnf/yum/pacman/apk)

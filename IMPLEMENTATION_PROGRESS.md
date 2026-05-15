@@ -9,46 +9,49 @@
 ## STATUS IMPLEMENTASI
 
 ```
-Step 1: Bootstrap Wizard skeleton (7 phases, flow dasar)     ✅ DONE
-Step 2: Network setup (netplan static IP + rollback)         ✅ DONE (Phase 2)
-Step 3: DoH setup (systemd-resolved)                        ✅ DONE (Phase 2)
-Step 4: Storage management (wizard mode + safety net)       ✅ DONE (Phase 3)
-Step 5: Docker network setup                                ✅ DONE (Phase 4)
-Step 6: Stack selection & auto-generate compose             ✅ DONE (Phase 5)
-Step 7: Remote access (Tailscale + Cloudflare Tunnel)       ✅ DONE (Phase 6)
-Step 8: SSH Autostart toggle                                ✅ DONE (Phase 7)
-Step 9: Bundle installer update (v3.0)                      ✅ DONE
-Step 9b: Test script (test-bootstrap.sh)                    ✅ DONE
-Step 10: Testing di VM                                      ⏳ TODO (manual)
-Step 11: Release v3.0.0                                     ⏳ TODO
+✅  Step 1   Bootstrap Wizard skeleton (7 phases, resume-able, per-phase rerun)
+✅  Step 2   Network setup (netplan static IP + rollback otomatis)
+✅  Step 3   DoH via systemd-resolved (Cloudflare/Google/Quad9)
+✅  Step 4   Storage management (wizard mode, safety net 5 lapis, UUID fstab)
+✅  Step 5   Docker setup (install, daemon config, group, network mode)
+✅  Step 6   Stack selection & auto-generate docker-compose.yml
+✅  Step 7   Remote access (Tailscale + Cloudflare Tunnel)
+✅  Step 8   SSH Autostart toggle (~/.bash_profile)
+✅  Step 9   Installer update v3.0 (bootstrap support, uninstall cleanup)
+✅  Step 9b  Test suite (test-bootstrap.sh: build + unit + smoke + integration)
+✅  Step 9c  Hapus TUI mode (curses) dari v3
+⏳  Step 10  Testing di VM (manual checklist)
+⏳  Step 11  Bugfix dari hasil testing
+⏳  Step 12  Release v3.0.0
 ```
 
 ---
 
-## FILES BARU DI v3
+## FILES DI v3
 
+### Baru
 ```
-dockman_main/
-├── core/
-│   └── bootstrap.py           <-- BARU: state, phases, compose gen, helpers
-└── ui/
-    └── bootstrap_wizard.py    <-- BARU: interactive UI 7 phases
-
-test-bootstrap.sh               <-- BARU: test suite (build + unit + smoke)
-IMPLEMENTATION_PROGRESS.md     <-- BARU: dokumen ini
+dockman_main/core/bootstrap.py       state management, phases, compose gen, helpers
+dockman_main/ui/bootstrap_wizard.py  interactive UI 7 phases
+test-bootstrap.sh                    test suite (50+ test cases)
+README.v3.md                         README branch v3
+IMPLEMENTATION_PROGRESS.md          dokumen ini
 ```
 
-## FILES YANG DIUBAH DI v3
-
+### Diubah
 ```
-dockman_main/
-├── core/config.py      VERSION 2.3.0 -> 3.0.0
-├── ui/cli_menu.py      + menu entry 33 (Bootstrap) & 34 (phase tertentu)
-├── main.py             + routing --bootstrap flag
-└── build.py            + include bootstrap modules di SOURCE_FILES
+dockman_main/core/config.py    VERSION 2.3.0 -> 3.0.0
+dockman_main/ui/cli_menu.py    + menu 33 (Bootstrap) & 34 (phase rerun)
+dockman_main/main.py           + --bootstrap flag, hapus TUI routing
+dockman_main/build.py          + bootstrap modules, - curses_ui, - curses import
+install-dockman.sh             v2.5 -> v3.0
+CHANGELOG.md                   + v3.0.0 section
+ROADMAP.md                     updated
+```
 
-install-dockman.sh  v2.5 -> v3.0 (bootstrap support, uninstall cleanup state)
-CHANGELOG.md        + v3.0.0 section
+### Dikosongkan (bukan dihapus, agar git history jelas)
+```
+dockman_main/ui/curses_ui.py   TUI dihapus di v3, file berisi komentar penjelasan
 ```
 
 ---
@@ -56,147 +59,123 @@ CHANGELOG.md        + v3.0.0 section
 ## CARA TEST DI VM
 
 ### Setup VM
-
 ```
 OS     : Ubuntu 24.04 LTS (prioritas)
 RAM    : 2GB minimum
 CPU    : 2 core
 Disk 1 : 20GB (OS)
-Disk 2 : 10GB (untuk test storage management Phase 3)
-Network: Bridge adapter (butuh IP dari router)
+Disk 2 : 10GB (test storage management Phase 3)
+Network: Bridge adapter
 ```
 
 ### Clone & Build
-
 ```bash
-# Clone branch v3
 git clone -b v3 https://github.com/bugsdroid/dockman.git
 cd dockman
-
-# Install dependency
 pip install rich --break-system-packages
-
-# Build
-cd dockman_main && python3 build.py
-cd ..
+cd dockman_main && python3 build.py && cd ..
 ```
 
-### Run test suite (non-interactive)
-
+### Automated test (non-interactive)
 ```bash
-# Semua test otomatis
-bash test-bootstrap.sh all
-
-# Test build saja
-bash test-bootstrap.sh build
-
-# Test unit (logic, tanpa UI)
-bash test-bootstrap.sh unit
-
-# Test system check (environment)
-bash test-bootstrap.sh system
+bash test-bootstrap.sh all          # semua test
+bash test-bootstrap.sh build        # test build & syntax
+bash test-bootstrap.sh unit         # test unit logic
+bash test-bootstrap.sh system       # cek environment VM
+bash test-bootstrap.sh integration  # test built binary
 ```
 
-### Run manual phase test (interaktif)
-
+### Manual test (interaktif)
 ```bash
 # Semua phase dari awal
 python3 dockman_main/dist/dockman.py --bootstrap
 
-# Phase tertentu
-python3 dockman_main/dist/dockman.py --bootstrap 1   # System prep
-python3 dockman_main/dist/dockman.py --bootstrap 2   # Network
-python3 dockman_main/dist/dockman.py --bootstrap 3   # Storage
-python3 dockman_main/dist/dockman.py --bootstrap 4   # Docker
-python3 dockman_main/dist/dockman.py --bootstrap 5   # Stack selection
-python3 dockman_main/dist/dockman.py --bootstrap 6   # Remote access
-python3 dockman_main/dist/dockman.py --bootstrap 7   # Deploy
+# Phase tertentu langsung
+python3 dockman_main/dist/dockman.py --bootstrap 1
+python3 dockman_main/dist/dockman.py --bootstrap 2
+python3 dockman_main/dist/dockman.py --bootstrap 3
+python3 dockman_main/dist/dockman.py --bootstrap 4
+python3 dockman_main/dist/dockman.py --bootstrap 5
+python3 dockman_main/dist/dockman.py --bootstrap 6
+python3 dockman_main/dist/dockman.py --bootstrap 7
 
-# Via test script (interactive)
-bash test-bootstrap.sh phase 3
-```
+# Verifikasi TUI dihapus
+python3 dockman_main/dist/dockman.py --tui  # harus tampil pesan info, bukan error
 
-### Install & test terintegrasi
-
-```bash
-# Install dari branch v3
-bash <(curl -fsSL https://raw.githubusercontent.com/bugsdroid/dockman/v3/install-dockman.sh)
-
-# Verifikasi
-dockman --version   # harus: DOCKMAN 3.0.0
-dockman --help      # harus ada --bootstrap
-
-# Jalankan bootstrap wizard
+# Via install
+bash install-dockman.sh
+dockman --version    # DOCKMAN 3.0.0
 dockman --bootstrap
 ```
 
 ---
 
-## CHECKLIST TEST MANUAL (per phase)
+## CHECKLIST TEST MANUAL
+
+### Pre-flight
+- [ ] `bash test-bootstrap.sh all` → semua PASS
+- [ ] `dockman --version` → `DOCKMAN 3.0.0`
+- [ ] `dockman --help` → ada `--bootstrap`, tidak ada `--tui` (atau ada pesan info)
+- [ ] `dockman --tui` → tampil pesan info bahwa TUI tidak tersedia, exit 0
+- [ ] `dockman` → menu 3 kolom muncul dengan entry 33 & 34
 
 ### Phase 1 - System Prep
-- [ ] Update packages berjalan tanpa error
-- [ ] Hostname berubah setelah diset
+- [ ] Update packages berjalan
+- [ ] Hostname berubah: `hostname` menunjukkan nilai baru
 - [ ] Timezone berubah: `timedatectl` menunjukkan timezone baru
 - [ ] Locale: `locale` menunjukkan en_US.UTF-8
-- [ ] SSH hardening: test dengan `sudo sshd -T | grep -E 'permitrootlogin|passwordauth'`
-- [ ] Phase bisa di-skip
-- [ ] State tersimpan di `~/.config/dockman/bootstrap_state.json`
+- [ ] SSH hardening (opsional, test dengan server yang punya SSH key)
+- [ ] Skip berjalan, state tersimpan
 
 ### Phase 2 - Network
 - [ ] Interface terdeteksi dengan benar
-- [ ] Validasi IP/CIDR: `192.168.1.100/24` diterima, `999.999.1.1/24` ditolak
-- [ ] Preview netplan YAML ditampilkan sebelum apply
-- [ ] Rollback berjalan jika apply gagal (test dengan IP invalid)
-- [ ] UFW aktif: `sudo ufw status` menunjukkan active
-- [ ] mDNS: `avahi-daemon` running, server bisa diping via `<hostname>.local`
-- [ ] DoH: `resolvectl status` menunjukkan DNS over TLS
-- [ ] Setiap sub-step bisa di-skip
+- [ ] Validasi IP: `192.168.1.100/24` diterima, `999.999.1.1` ditolak
+- [ ] Preview netplan YAML tampil sebelum apply
+- [ ] Rollback berjalan jika apply gagal
+- [ ] UFW aktif: `sudo ufw status` → active
+- [ ] mDNS: `ping <hostname>.local` berhasil dari perangkat lain
+- [ ] DoH: `resolvectl status` → DNS over TLS
+- [ ] Skip tiap sub-step berjalan
 
 ### Phase 3 - Storage
-- [ ] Disk terdeteksi: OS disk ditandai `[OS DISK]`, tidak bisa dipilih untuk format
-- [ ] Wizard mode: folder structure dibuat di path yang benar
-- [ ] Format disk (di Disk 2 VM): partisi dibuat, ext4, mount berhasil
-- [ ] fstab diupdate dengan UUID dan `nofail,noatime`
-- [ ] Folder structure default terbuat semua (movies, tv, music, downloads, dll)
-- [ ] Safety net: konfirmasi eksplisit muncul sebelum format
-- [ ] Skip: langsung lanjut tanpa format
+- [ ] OS disk ditandai `[OS DISK]`, tidak bisa dipilih untuk format
+- [ ] Disk 2 bisa dipilih, safety confirmation muncul
+- [ ] Format + mount + fstab berhasil (cek `lsblk` dan `cat /etc/fstab`)
+- [ ] Folder structure terbuat: `movies/ tv/ music/ downloads/ config/`
+- [ ] Skip (pilih 0): langsung ke folder structure tanpa format
 
 ### Phase 4 - Docker
-- [ ] Docker install berjalan (di VM fresh tanpa Docker)
-- [ ] User ditambahkan ke grup docker
-- [ ] Daemon config diterapkan: `/etc/docker/daemon.json` ada
-- [ ] Network mode bisa dipilih: bridge atau macvlan
-- [ ] PUID/PGID otomatis detect dari current user
+- [ ] Install Docker berhasil di VM fresh
+- [ ] User ditambah ke grup docker
+- [ ] `/etc/docker/daemon.json` ada dengan log rotation
+- [ ] PUID/PGID terdeteksi dari current user
 
-### Phase 5 - Stack Selection
-- [ ] Semua 9 kategori muncul
-- [ ] Single-select berjalan (media server, downloader, dll)
-- [ ] Multi-select berjalan (arr suite, monitoring)
-- [ ] Recommended item ditandai
-- [ ] Port conflict terdeteksi (coba pilih Jellyfin + Emby)
-- [ ] Summary pilihan ditampilkan di akhir
+### Phase 5 - Stack
+- [ ] Semua 9 kategori tampil
+- [ ] Single-select dan multi-select berjalan
+- [ ] Port conflict terdeteksi (pilih Jellyfin + Emby → harus warning port 8096)
+- [ ] Summary pilihan tampil di akhir
 
 ### Phase 6 - Remote Access
-- [ ] Opsi A/B/C/0 berjalan
+- [ ] Pilihan A/B/C/0 berjalan
 - [ ] Tailscale: install script berjalan
 - [ ] Cloudflare: token tersimpan di state
 - [ ] Skip berjalan
 
 ### Phase 7 - Deploy
-- [ ] docker-compose.yml di-generate berdasarkan pilihan Phase 5
-- [ ] YAML valid: `docker compose config` tidak error
-- [ ] Preview YAML ditampilkan sebelum deploy
+- [ ] `docker-compose.yml` di-generate sesuai pilihan Phase 5
+- [ ] `docker compose config` tidak error (YAML valid)
+- [ ] Preview YAML tampil sebelum deploy
 - [ ] `docker compose up -d` berjalan
-- [ ] Summary URL akses ditampilkan
-- [ ] SSH autostart di-toggle ke ~/.bash_profile
+- [ ] Summary URL akses tampil
+- [ ] SSH autostart: cek `~/.bash_profile` ada snippet dockman
 
 ### End-to-End
-- [ ] Interrupt wizard di tengah (Ctrl+C), state tersimpan
-- [ ] Resume wizard dari phase yang tertunda
-- [ ] Jalankan ulang phase tertentu dari menu (pilihan 34)
-- [ ] Semua phase selesai: layar completed ditampilkan
-- [ ] `dockman --bootstrap` pada server yang sudah selesai: tampilkan layar completed
+- [ ] Interrupt Ctrl+C di tengah phase → state tersimpan
+- [ ] Resume: `dockman --bootstrap` → layar resume tampil, bisa lanjut
+- [ ] Per-phase rerun dari menu: pilih `34` → pilih nomor phase → phase jalan
+- [ ] Semua phase selesai → layar completed tampil dengan summary URL
+- [ ] Uninstall: `bash install-dockman.sh uninstall` → tanya hapus state juga
 
 ---
 
@@ -242,19 +221,25 @@ dockman --bootstrap
 
 ## TODO SEBELUM RELEASE v3.0.0
 
-### Wajib
-- [ ] Semua checklist manual di atas lulus di Ubuntu 24.04
+**Step 10 - Testing di VM:**
+- [ ] `bash test-bootstrap.sh all` → PASS
+- [ ] Manual checklist Phase 1-7 di Ubuntu 24.04
+- [ ] Test install dari curl + bootstrap
+- [ ] Test resume (interrupt & lanjut)
+- [ ] Test per-phase rerun
+- [ ] Test uninstall + cleanup state
 - [ ] Test di Debian 12
-- [ ] Fix bug yang ditemukan selama testing
 
-### Nice to have
-- [ ] Advanced mode untuk storage (Phase 3) 
-- [ ] Test di Ubuntu 22.04
-- [ ] Test di Debian 11
-- [ ] Offline bundle installer
-- [ ] Update README.md dengan fitur Bootstrap Wizard
-- [ ] Screenshot/GIF demo Bootstrap Wizard
+**Step 11 - Bugfix:**
+- [ ] Fix semua issue dari Step 10
+- [ ] Re-run test suite setelah fix
+
+**Step 12 - Release:**
+- [ ] Merge `v3` → `main`
+- [ ] Tag `v3.0.0`
+- [ ] Update README.md
+- [ ] GitHub Release dengan changelog
 
 ---
 
-*Upload file ini di chat baru untuk lanjut ke step berikutnya (testing & bugfix).*
+*Upload file ini di chat baru untuk lanjut ke step testing & bugfix.*
