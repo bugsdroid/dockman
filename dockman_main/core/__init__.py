@@ -1,1 +1,1 @@
-# core package
+# core package - Dockman v3.0.0
