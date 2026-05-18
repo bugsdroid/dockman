@@ -1,5 +1,9 @@
 """
-ui/wizard.py - First-run setup wizard untuk Dockman
+ui/wizard.py - First-run setup wizard untuk Dockman v3.0.0
+
+Wizard ini untuk konfigurasi dasar dockman (editor, compose file, dll).
+Untuk setup server lengkap (Docker, Jellyfin, storage, dll),
+gunakan Bootstrap Wizard: dockman --bootstrap
 """
 
 import socket
@@ -24,12 +28,15 @@ def _step(n: int, total: int, title: str):
 
 
 def run_wizard():
-    """Interactive first-run wizard."""
+    """Interactive first-run wizard untuk config dasar dockman."""
     import configparser
 
     _banner(f"{config.APP_NAME} v{config.VERSION} - Setup Wizard")
     print("  Konfigurasi akan disimpan di:")
     print(f"  {config.CONFIG_FILE}")
+    print()
+    print("  Tip: Untuk setup server lengkap (Docker, stack media, storage, dll),")
+    print("       jalankan Bootstrap Wizard: dockman --bootstrap")
     print()
 
     cfg = config.load()
@@ -74,14 +81,13 @@ def run_wizard():
         cfg["docker"]["compose_dir"]  = str(Path(compose_file).parent)
         print(f"  OK: {compose_file}")
     else:
-        print("  Skip - bisa diset nanti di Settings (t)")
+        print("  Skip - bisa diset nanti di Settings (menu 31)")
 
     # [3] Docker Compose Command
     _step(3, TOTAL, "Docker Compose Command")
     print("  Mendeteksi...", end="", flush=True)
     detected = config.detect_compose_cmd()
     print(f" {detected}")
-
     current_cmd = config.get("docker", "compose_cmd", "auto")
     print(f"  Pilihan: auto / docker compose / docker-compose")
     val = input(f"  Command [{current_cmd}]: ").strip()
@@ -161,10 +167,7 @@ def run_wizard():
     current_alias = config.get("alias", "file", default_alias)
     print(f"  File yang berisi alias shell kamu.")
     val = input(f"  Path [{current_alias}]: ").strip()
-    if val:
-        cfg["alias"]["file"] = val
-    else:
-        cfg["alias"]["file"] = current_alias
+    cfg["alias"]["file"] = val or current_alias
 
     # Simpan
     print()
@@ -184,6 +187,7 @@ def run_wizard():
         config.save(cfg)
         config.load()
         print(f"\n  OK: Config disimpan di {config.CONFIG_FILE}")
+        print(f"  Tip: Jalankan 'dockman --bootstrap' untuk setup server lengkap.")
     else:
         print("  Config tidak disimpan.")
     print()

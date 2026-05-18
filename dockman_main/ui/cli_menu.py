@@ -1,6 +1,9 @@
 """
-ui/cli_menu.py - Numbered menu fallback untuk Dockman
+ui/cli_menu.py - Numbered menu fallback untuk Dockman v3.0.0
 Layout 3 kolom: CONTAINER|COMPOSE|MAINTENANCE dan GNU SCREEN|EXTRAS|SETTINGS
+Tambahan: BOOTSTRAP WIZARD (menu 33 & 34)
+
+Note v3: TUI mode (curses) dihapus. Menu ini adalah UI utama.
 """
 
 import os
@@ -21,16 +24,14 @@ import ui.rich_ui as rich_ui
 
 def pick_container(show_all: bool = False):
     """Tampilkan list container, user pilih nomor."""
-    containers = docker_get_all() if show_all else [
-        c for c in docker_get_all() if c["running"]
+    containers = get_containers() if show_all else [
+        c for c in get_containers() if c["running"]
     ]
     if not containers and not show_all:
-        containers = docker_get_all()
-
+        containers = get_containers()
     if not containers:
         rich_ui.cli_error("Tidak ada container.")
         return None
-
     rich_ui.show_containers(containers)
     try:
         idx = int(input("  Pilih nomor [0=batal]: ").strip()) - 1
@@ -42,10 +43,6 @@ def pick_container(show_all: bool = False):
         return None
     except (ValueError, EOFError):
         return None
-
-
-def docker_get_all():
-    return get_containers()
 
 
 def run_menu():
@@ -72,11 +69,12 @@ def run_menu():
         print(f"  \033[1;36mDOCKMAN v{VERSION}  \u2014  {hostname}  \u2014  {cur_user}\033[0m")
         print()
 
-        # ── 3-column menu layout ─────────────────────────────────────────────────────
+        # ── 3-column layout ────────────────────────────────────────────────────────────
         COL_W = 26
         GAP   = 2
 
         def row3(c1="", c2="", c3="", hdr=False):
+            import re as _re
             CYAN  = "\033[1;36m"
             RESET = "\033[0m"
             if hdr:
@@ -85,7 +83,6 @@ def run_menu():
                 l3 = f"{CYAN}{c3}{RESET}"
             else:
                 l1, l2, l3 = c1, c2, c3
-            import re as _re
             p1 = max(0, COL_W - len(_re.sub(r'\033\[[0-9;]*m', '', l1)))
             p2 = max(0, COL_W - len(_re.sub(r'\033\[[0-9;]*m', '', l2)))
             print(f"  {l1}{' '*p1}{' '*GAP}{l2}{' '*p2}{' '*GAP}{l3}")
@@ -96,22 +93,22 @@ def run_menu():
             c3 = f"{n3}. {t3}" if n3 else ""
             row3(c1, c2, c3)
 
-        # ── Baris atas: CONTAINER | COMPOSE | MAINTENANCE ───────────────────────────
-        row3("CONTAINER",     "COMPOSE",          "MAINTENANCE",  hdr=True)
-        mi("1",  "List container",    "9",  "Compose UP",    "14", "Prune image")
-        mi("2",  "Update image",      "10", "Compose DOWN",  "15", "Prune volumes")
-        mi("3",  "Update SEMUA",      "11", "Lihat compose", "16", "Prune TOTAL")
-        mi("4",  "Restart",           "12", "Edit compose",  "17", "Disk usage")
+        # ── Baris 1: CONTAINER | COMPOSE | MAINTENANCE ────────────────────────────
+        row3("CONTAINER", "COMPOSE", "MAINTENANCE", hdr=True)
+        mi("1",  "List container",    "9",  "Compose UP",     "14", "Prune image")
+        mi("2",  "Update image",      "10", "Compose DOWN",   "15", "Prune volumes")
+        mi("3",  "Update SEMUA",      "11", "Lihat compose",  "16", "Prune TOTAL")
+        mi("4",  "Restart",           "12", "Edit compose",   "17", "Disk usage")
         mi("5",  "Restart SEMUA",     "13", "Backup compose")
         mi("6",  "Docker Stats")
         mi("7",  "Lihat logs")
         mi("8",  "Exec shell")
         print()
 
-        # ── Baris bawah: GNU SCREEN | EXTRAS | SETTINGS ─────────────────────────
-        row3("GNU SCREEN",    "EXTRAS",            "SETTINGS",     hdr=True)
-        mi("25", "List session",      "18", "Lihat alias",   "31", "Lihat konfigurasi")
-        mi("26", "Attach",            "19", "Grep alias",    "32", "Wizard ulang")
+        # ── Baris 2: GNU SCREEN | EXTRAS | SETTINGS ─────────────────────────────
+        row3("GNU SCREEN", "EXTRAS", "SETTINGS", hdr=True)
+        mi("25", "List session",      "18", "Lihat alias",    "31", "Lihat konfigurasi")
+        mi("26", "Attach",            "19", "Grep alias",     "32", "Wizard ulang")
         mi("27", "Kill 1 session",    "20", "Edit bashrc")
         mi("28", "Kill SEMUA",        "21", "Lihat cron")
         mi("29", "Buat session",      "22", "Edit cron")
@@ -119,8 +116,8 @@ def run_menu():
         mi("",   "",                  "24", "Server report")
         print()
 
-        # ── Bootstrap Wizard ──────────────────────────────────────────────────────
-        print(f"  \033[1;36mBOOTSTRAP\033[0m")
+        # ── Bootstrap Wizard ────────────────────────────────────────────────────────
+        row3("BOOTSTRAP", "", "", hdr=True)
         mi("33", "Bootstrap Wizard (setup server dari nol)")
         mi("34", "Jalankan ulang phase tertentu (1-7)")
         print()
@@ -133,6 +130,7 @@ def run_menu():
         if choice == "0":
             break
 
+        # ── Container ─────────────────────────────────────────────────────────────────
         elif choice == "1":
             rich_ui.show_containers(get_containers())
 
@@ -184,6 +182,7 @@ def run_menu():
                     f"docker exec -it {name} sh"
                 )
 
+        # ── Compose ───────────────────────────────────────────────────────────────────
         elif choice == "9":
             if not compose_dir:
                 rich_ui.cli_error("Compose dir belum dikonfigurasi. Jalankan pilihan 32.")
@@ -221,6 +220,7 @@ def run_menu():
                 else:
                     rich_ui.cli_error(f"Gagal: {err}")
 
+        # ── Maintenance ───────────────────────────────────────────────────────────────
         elif choice == "14":
             imgs = get_dangling_images()
             if not imgs:
@@ -245,9 +245,9 @@ def run_menu():
                 run_interactive("docker system prune -af --volumes")
 
         elif choice == "17":
-            disk = get_disk_usage()
-            rich_ui.show_disk_usage(disk)
+            rich_ui.show_disk_usage(get_disk_usage())
 
+        # ── Extras ────────────────────────────────────────────────────────────────────
         elif choice == "18":
             run_interactive("bash -i -c 'alias' 2>/dev/null")
 
@@ -308,9 +308,9 @@ def run_menu():
                 size = _os.path.getsize(result)
                 rich_ui.cli_success(f"Report: {result} ({size:,} bytes)")
 
+        # ── GNU Screen ─────────────────────────────────────────────────────────────────
         elif choice == "25":
-            sessions = get_screens()
-            rich_ui.show_screen_sessions(sessions)
+            rich_ui.show_screen_sessions(get_screens())
 
         elif choice in ("26", "27"):
             sessions = get_screens()
@@ -366,6 +366,7 @@ def run_menu():
             else:
                 rich_ui.cli_error("Perintah kosong.")
 
+        # ── Settings ──────────────────────────────────────────────────────────────────
         elif choice == "31":
             cfg = load()
             print(f"\n  Config: {CONFIG_FILE}\n")
@@ -379,7 +380,7 @@ def run_menu():
             from ui.wizard import run_wizard
             run_wizard()
 
-        # ── Bootstrap Wizard ────────────────────────────────────────────────────────────
+        # ── Bootstrap Wizard ───────────────────────────────────────────────────────────
         elif choice == "33":
             from ui.bootstrap_wizard import run_bootstrap_wizard
             run_bootstrap_wizard()
@@ -403,7 +404,7 @@ def run_menu():
                 if phase_id:
                     run_bootstrap_wizard(phase_id=phase_id)
                 else:
-                    rich_ui.cli_error(f"Phase {raw} tidak ditemukan.")
+                    rich_ui.cli_error(f"Phase {raw} tidak ditemukan. Range: 1-7")
 
         else:
             rich_ui.cli_error(f"Pilihan tidak valid: {choice}")
