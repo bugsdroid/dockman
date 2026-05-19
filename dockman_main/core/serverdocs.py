@@ -93,7 +93,7 @@ class ServerDocsGenerator:
             self._w(out)
             return
 
-        # Strategy 2: ufw tanpa sudo (capture stdout+stderr)
+        # Strategy 2: ufw tanpa sudo
         out2, err2, code2 = run_cmd("ufw status verbose 2>&1", timeout=5)
         if out2 and ("active" in out2.lower() or "inactive" in out2.lower()):
             self._w(out2)
@@ -115,13 +115,13 @@ class ServerDocsGenerator:
             self._w(ufw_conf)
             return
 
-        # Strategy 4: cek via systemctl (non-interactive)
+        # Strategy 4: cek via systemctl
         out3, _, code3 = run_cmd("systemctl is-active ufw 2>/dev/null", timeout=5)
         if out3.strip():
             self._w(f"UFW service status (systemctl): {out3.strip()}")
             self._w("")
 
-        # Strategy 5: iptables (non-interactive, sudo -n)
+        # Strategy 5: iptables (non-interactive)
         out4, _, code4 = run_cmd("sudo -n iptables -L ufw-user-input -n 2>/dev/null | head -5", timeout=5)
         if code4 == 0 and out4.strip():
             self._w("UFW iptables rules terdeteksi:")
@@ -186,10 +186,18 @@ class ServerDocsGenerator:
     def section_compose_projects(self):
         self._w(_section("DOCKER COMPOSE PROJECTS"))
         search_base = "/home /root /opt /srv /etc /data /mnt"
-        out = _run(f"find {search_base} -maxdepth 6 \\( -name 'docker-compose.yml' -o -name 'docker-compose.yaml' -o -name 'compose.yml' -o -name 'compose.yaml' \\) 2>/dev/null | sort")
+        # maxdepth 8 untuk tangkap compose file yang lebih dalam di /mnt
+        out, _, _ = run_cmd(
+            f"find {search_base} -maxdepth 8 "
+            r"\( -name 'docker-compose.yml' -o -name 'docker-compose.yaml' "
+            r"-o -name 'compose.yml' -o -name 'compose.yaml' \) "
+            "2>/dev/null | sort",
+            timeout=30
+        )
         files = [f for f in out.splitlines() if f.strip()]
         if not files:
             self._w("Tidak ada file docker-compose ditemukan.")
+            self._w("Tip: cek path compose file di Settings (pilih 32 -> wizard)")
             return
         for i, filepath in enumerate(files, 1):
             dirpath = str(Path(filepath).parent)
@@ -208,7 +216,13 @@ class ServerDocsGenerator:
     def section_yml_files(self):
         self._w(_section("SEMUA FILE YML / YAML"))
         search_base = "/home /root /opt /srv /etc /data /mnt"
-        out = _run(f"find {search_base} -maxdepth 6 \\( -name '*.yml' -o -name '*.yaml' \\) ! -path '*/node_modules/*' ! -path '*/.git/*' ! -path '*/vendor/*' 2>/dev/null | sort")
+        out, _, _ = run_cmd(
+            f"find {search_base} -maxdepth 8 "
+            r"\( -name '*.yml' -o -name '*.yaml' \) "
+            r"! -path '*/node_modules/*' ! -path '*/.git/*' ! -path '*/vendor/*' "
+            "2>/dev/null | sort",
+            timeout=30
+        )
         files = [f for f in out.splitlines() if f.strip()]
         if not files:
             self._w("Tidak ada file YML ditemukan.")
@@ -221,7 +235,7 @@ class ServerDocsGenerator:
     def section_yml_contents(self):
         self._w(_section("ISI FILE YML (Non docker-compose)"))
         search_base = "/home /root /opt /srv /etc /data /mnt"
-        out = _run(f"find {search_base} -maxdepth 6 \\( -name '*.yml' -o -name '*.yaml' \\) ! -name 'docker-compose*' ! -name 'compose.yml' ! -name 'compose.yaml' ! -path '*/node_modules/*' ! -path '*/.git/*' ! -path '*/vendor/*' 2>/dev/null | sort")
+        out = _run(f"find {search_base} -maxdepth 8 \\( -name '*.yml' -o -name '*.yaml' \\) ! -name 'docker-compose*' ! -name 'compose.yml' ! -name 'compose.yaml' ! -path '*/node_modules/*' ! -path '*/.git/*' ! -path '*/vendor/*' 2>/dev/null | sort")
         files = [f for f in out.splitlines() if f.strip()]
         if not files:
             self._w("Tidak ada file YML non-compose ditemukan.")
@@ -275,7 +289,6 @@ class ServerDocsGenerator:
             files = sorted([f for f in netplan_dir.iterdir()
                             if f.suffix in (".yaml", ".yml") and f.is_file()])
         except PermissionError:
-            # Tidak pakai sudo - bisa trigger polkit interaktif
             self._w("Tidak bisa membaca /etc/netplan/ (Permission denied).")
             self._w("Jalankan: sudo dockman report  untuk detail netplan.")
             return
@@ -290,22 +303,18 @@ class ServerDocsGenerator:
             self._w(_divider())
             self._w(f" File: {filepath}")
             self._w(_divider())
-            content = None
+            file_content = None
             try:
-                content = Path(filepath).read_text(errors="replace")
+                file_content = Path(filepath).read_text(errors="replace")
             except PermissionError:
-                # Tidak pakai sudo cat - bisa trigger polkit interaktif
                 self._w("[Permission denied - jalankan: sudo dockman report]")
             except OSError as e:
                 self._w(f"[Error: {e}]")
-            if content:
-                self._w(content)
+            if file_content:
+                self._w(file_content)
             self._w("")
-        # Hanya coba tanpa sudo - sudo bisa trigger polkit interaktif
-        out, _, code = run_cmd("netplan status 2>/dev/null", timeout=5)
-        if code == 0 and out and "command not found" not in out.lower():
-            self._w("\n--- Netplan Status ---")
-            self._w(out)
+        # TIDAK memanggil 'netplan status' - command ini trigger polkit
+        # di beberapa sistem Ubuntu/Debian karena auto-start systemd-networkd
 
     SECTIONS = [
         ("Header",              "section_header"),
